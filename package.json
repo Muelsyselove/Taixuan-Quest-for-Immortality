@@ -2,6 +2,7 @@
   "name": "xiuxian-game",
   "version": "1.0.0",
   "description": "太玄问道 · AI 驱动的修仙文字游戏 (Electron + WebGL + SVG)",
+  "license": "AGPL-3.0-only",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
