@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'" />
+  <title>太玄问道</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;600;900&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles/main.css" />
+</head>
+<body>
+  <!-- WebGL 灵雾背景 -->
+  <canvas id="gl-bg"></canvas>
+
+  <!-- 无边框标题栏 -->
+  <div id="titlebar">
+    <div class="brand">
+      <span class="brand-mark">太玄</span>
+      <span class="brand-text">太玄问道 · TAIXUAN</span>
+    </div>
+    <div class="win-controls">
+      <button id="btn-saves" title="存档 / 读档">☰</button>
+      <button id="btn-settings" title="AI 设置">⚙</button>
+      <button id="btn-min" title="最小化">—</button>
+      <button id="btn-max" title="最大化">▢</button>
+      <button id="btn-close" title="关闭">✕</button>
+    </div>
+  </div>
+
+  <!-- 三栏布局：组件挂载点 -->
+  <main id="layout">
+    <div id="col-left"></div>
+    <div id="col-center"></div>
+    <div id="col-right"></div>
+  </main>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
