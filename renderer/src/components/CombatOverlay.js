@@ -1,6 +1,7 @@
 // 战斗界面：全屏覆盖层，回合制交锋
 import { Component, h, icon } from '../core/component.js';
-import { CONFIG } from '../core/config.js';
+import { buffLabel, buffColor, effectText, EFFECTS } from '../core/fx.js';
+import { describeActive } from '../core/skills.js';
 
 export class CombatOverlay extends Component {
   constructor(store, props) {
@@ -101,9 +102,10 @@ export class CombatOverlay extends Component {
       buffs.length
         ? h('div', { class: 'fighter-buffs' },
             buffs.map(b => {
-              const meta = CONFIG.combat.buffKinds[b.kind];
-              return h('span', { class: 'buff-chip', style: { color: meta?.color, borderColor: meta?.color } },
-                `${meta?.label ?? b.kind}${b.turns > 90 ? '' : `·${b.turns}`}`);
+              const color = buffColor(b);
+              const fxTip = (b.effects || []).map(e => `${EFFECTS[e.key]?.label ?? e.key}：${effectText(e)}`).join('；');
+              return h('span', { class: 'buff-chip', style: { color, borderColor: color }, title: `${b.name}——${fxTip}` },
+                buffLabel(b));
             })
           )
         : h('div', { class: 'fighter-buffs empty' }, '无状态')
@@ -123,6 +125,7 @@ export class CombatOverlay extends Component {
         s.activeSkills.map(sk => h('button', {
           class: 'combat-btn',
           disabled: disabled || s.mp < (sk.cost ?? 10) ? 'disabled' : null,
+          title: describeActive(sk),
           onclick: () => act({ type: 'skill', skill: sk })
         }, `${sk.name}（耗蓝${sk.cost ?? 10}）`)),
         h('button', { class: 'combat-btn back', onclick: () => { this.mode = 'root'; this._render(); } }, '← 返回')

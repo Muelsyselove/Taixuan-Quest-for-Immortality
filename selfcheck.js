@@ -2,7 +2,8 @@
 const { _electron: electron } = require('playwright-core');
 
 (async () => {
-  const app = await electron.launch({ args: ['.', '--no-sandbox', '--disable-gpu'], cwd: __dirname });
+  const electronPath = require('path').join(__dirname, 'node_modules', 'electron', 'dist', 'electron');
+  const app = await electron.launch({ executablePath: electronPath, args: ['.', '--no-sandbox', '--disable-gpu'], cwd: __dirname });
   const win = await app.firstWindow();
 
   const errors = [];
@@ -90,10 +91,13 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.modal-close').click();
   await win.waitForTimeout(200);
 
-  // 5. 功法二级页
+  // 5. 功法二级页（技能层结构化字段展示）
   await win.locator('.char-entry').nth(0).click();
   await win.waitForTimeout(300);
-  out.skills = { details: await win.locator('.skill-detail').count() };
+  out.skills = {
+    details: await win.locator('.skill-detail').count(),
+    structLines: await win.locator('.skill-struct').count()
+  };
   await win.locator('.modal-close').click();
   await win.waitForTimeout(200);
 
@@ -152,6 +156,69 @@ const { _electron: electron } = require('playwright-core');
   if (await goldBtn.count()) { await goldBtn.click(); await win.waitForTimeout(300); }
   out.combat.maskGone = await win.evaluate(() => !window.__game.store.state.combat);
 
+  // 8.2 三层体系微测：效果层 tick / buff 叠加 / 技能结构化结算（确定性，不依赖随机）
+  out.layers = await win.evaluate(() => {
+    const g = window.__game;
+    const st = g.store;
+    const ce = g.combat;
+    st.set({ combat: null });
+    ce.start({ enemy: { name: '自检木桩', desc: '', hp: 500, atk: 5, pdef: 0, mdef: 0, skills: [{ name: '轻拍', mult: 1 }] }, playerFirst: true });
+    const c = () => st.state.combat;
+    const r = {};
+
+    // 清零常驻加成（避免随机选到的闪避/反伤被动干扰断言）
+    const stash = { p: st.state.passiveSkills, t: st.state.talents, b: st.state.buffs };
+    st.set({ passiveSkills: [], talents: [], buffs: [] });
+
+    // buff 层：可叠加上限（同名中毒 buff 叠 2 层）
+    const poisonSkill = { name: '自检毒雾', cost: 0, buffs: [{ target: 'enemy', name: '中毒', turns: 3, stackable: true, maxStacks: 2, effects: [{ key: 'poison', pct: 0.05 }] }] };
+    ce._castSkill('player', poisonSkill);
+    ce._castSkill('player', poisonSkill);
+    ce._castSkill('player', poisonSkill); // 第三次应被上限截断
+    r.buffStackCap = c().buffs.enemy.find(b => b.name === '中毒')?.stacks === 2;
+
+    // 技能层：次数盾 / 屏障 / 造物 / 眩晕
+    ce._castSkill('player', { name: '自检护盾', cost: 0, shieldLayers: 2 });
+    ce._castSkill('player', { name: '自检屏障', cost: 0, barrierMult: 1.0 });
+    ce._castSkill('player', { name: '自检造物', cost: 0, buffs: [{ target: 'self', name: '石傀', turns: 3, effects: [{ key: 'summon', mult: 0.5 }] }] });
+    ce._castSkill('player', { name: '自检定身', cost: 0, buffs: [{ target: 'enemy', name: '定身', turns: 1, effects: [{ key: 'stun' }] }] });
+    r.shieldUp = c().buffs.player.some(b => b.effects.some(e => e.key === 'shield' && e.layers === 2));
+    r.barrierUp = c().buffs.player.some(b => b.effects.some(e => e.key === 'barrier' && e.value > 0));
+    r.summonUp = c().buffs.player.some(b => b.effects.some(e => e.key === 'summon'));
+    r.stunUp = ce._hasFx('enemy', 'stun');
+
+    // 效果层 tick：敌方中毒掉血；我方造物自动攻击
+    const hp0 = c().enemy.hp;
+    ce._tickStart('enemy');
+    r.poisonTick = c().enemy.hp < hp0;
+    const hp1 = c().enemy.hp;
+    ce._tickStart('player');
+    r.summonTick = c().enemy.hp < hp1;
+
+    // 结算链：次数盾完整抵消一次伤害（玩家不掉血，盾层数 2→1）
+    const pHp0 = st.state.hp;
+    ce._strike('enemy', { atk: 30, mult: 1, label: '试击' });
+    r.shieldBlock = st.state.hp === pHp0
+      && c().buffs.player.some(b => b.effects.some(e => e.key === 'shield' && e.layers === 1));
+
+    // 还原常驻加成并清场
+    st.set({ passiveSkills: stash.p, talents: stash.t, buffs: stash.b, combat: null });
+    return r;
+  });
+  await win.waitForTimeout(200);
+
+  // 8.5 存档专属技能注册（registerSkill 路径）→ 随存档持久化验证（在存档测试前注册）
+  await win.evaluate(() => {
+    window.__game.store.registerCustomSkill({
+      type: 'active', name: '天机一剑', desc: '自检专属神通', cost: 15, mult: 2.2,
+      buffs: [{ target: 'enemy', name: '灼烧', turns: 2, effects: [{ key: 'burn', mult: 0.3 }] }]
+    });
+  });
+  out.customSkill = {
+    learned: await win.evaluate(() => window.__game.store.state.activeSkills.some(s => s.name === '天机一剑' && s.custom)),
+    registered: await win.evaluate(() => window.__game.store.state.customSkills.active.some(s => s.name === '天机一剑'))
+  };
+
   // 9. 存档 / 读档（按角色独立 + 分域文件）
   await win.evaluate(() => window.__game.saves.save('selfcheck'));
   const dayNow = await win.evaluate(() => window.__game.store.state.day);
@@ -160,7 +227,10 @@ const { _electron: electron } = require('playwright-core');
     written: true, loaded,
     dayMatch: (await win.evaluate(() => window.__game.store.state.day)) === dayNow,
     listCount: (await win.evaluate(() => window.__game.saves.list())).length,
-    relationsKept: await win.evaluate(() => window.__game.store.state.relations.length)
+    relationsKept: await win.evaluate(() => window.__game.store.state.relations.length),
+    customKept: await win.evaluate(() =>
+      window.__game.store.state.customSkills.active.some(s => s.name === '天机一剑')
+      && window.__game.store.state.activeSkills.some(s => s.name === '天机一剑'))
   };
   await win.evaluate(() => window.__game.saves.remove('selfcheck'));
 
@@ -187,11 +257,14 @@ const { _electron: electron } = require('playwright-core');
     };
   });
 
-  // 12. 花费统计：注入用量记录 → 双图渲染 + 缩放跨档钳制
+  // 12. 花费统计：注入用量记录（含缓存命中/未命中）→ 堆叠图渲染 + 命中率 + 缩放跨档钳制
   await win.evaluate(async () => {
     const now = Date.now();
     for (let i = 0; i < 6; i++) {
-      await window.taixuan.usage.record({ t: now - i * 3600 * 1000, kind: 'advance', vendor: 'deepseek', model: 'deepseek-chat', pt: 1200 + i * 100, ct: 300 + i * 50 });
+      const pt = 1200 + i * 100;
+      const ch = 600 + i * 40;            // 缓存命中
+      const cm = pt - ch;                 // 缓存未命中
+      await window.taixuan.usage.record({ t: now - i * 3600 * 1000, kind: 'advance', vendor: 'deepseek', model: 'deepseek-chat', pt, ct: 300 + i * 50, ch, cm });
     }
   });
   await win.locator('.gt-btn[data-t="usage"]').click();
@@ -201,6 +274,10 @@ const { _electron: electron } = require('playwright-core');
     tabs: await win.locator('.usage-modal .ui-tab').count(),
     charts: await win.locator('.barchart').count(),
     bars: await win.locator('.bc-bar').count(),
+    segs: await win.locator('.bc-seg').count(),           // 堆叠段（命中/输入/输出）
+    legend: await win.locator('.bc-legend').count(),
+    priceFields: await win.locator('.usage-pricing .ui-field').count(), // 输入/输出/缓存命中价
+    hitRateShown: await win.locator('.usage-sum-item b:has-text("%")').count(),
     defaultScale: await win.locator('.usage-modal .ui-tab.active').innerText()
   };
   const usageZoomIn = win.locator('.usage-zoom-btn').nth(1);

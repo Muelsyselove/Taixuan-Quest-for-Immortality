@@ -50,8 +50,8 @@ export const DOMAINS = [
     key: 'skills',
     file: 'skills.json',
     label: '功法神通',
-    desc: '主动技能（耗蓝/倍率/灵根属性）、被动技能、天赋能力',
-    keys: ['activeSkills', 'passiveSkills', 'talents'],
+    desc: '主动技能（耗蓝/倍率/灵根属性）、被动技能、天赋能力、存档专属技能',
+    keys: ['activeSkills', 'passiveSkills', 'talents', 'customSkills'],
     present(s) {
       return {
         主动技能: s.activeSkills.map(x => `${x.name}(耗蓝${x.cost ?? 10},倍率${x.mult ?? 1.5}${x.root ? ',属' + (CONFIG.roots.find(r => r.key === x.root)?.label ?? x.root) : ''})——${x.desc}`),
