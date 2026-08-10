@@ -7,7 +7,7 @@ export class CharacterPanel extends Component {
     return ['hp', 'maxHp', 'mp', 'maxMp', 'atk', 'pdef', 'mdef',
             'cultivation', 'cultivationCap', 'realm', 'realmIndex',
             'activeSkills', 'passiveSkills', 'talents', 'items', 'name',
-            'roots', 'buffs'];
+            'roots', 'buffs', 'relations'];
   }
 
   render() {
@@ -109,7 +109,7 @@ export class CharacterPanel extends Component {
       this.buffsEl.appendChild(h('div', { class: 'buff-empty' }, '暂无增益'));
     }
 
-    // 入口按钮：功法神通 / 背包
+    // 入口按钮：功法神通 / 背包 / 人物关系
     const skillCount = s.activeSkills.length + s.passiveSkills.length + s.talents.length;
     this.entryEl.innerHTML = '';
     this.entryEl.append(
@@ -126,6 +126,14 @@ export class CharacterPanel extends Component {
         h('span', { class: 'entry-text' },
           h('b', null, '背包'),
           h('i', null, `${s.items.length} 件物品`)
+        ),
+        h('span', { class: 'entry-arrow' }, '›')
+      ),
+      h('button', { class: 'char-entry', onclick: () => this.props.onOpenRelations?.() },
+        icon('heart', 16),
+        h('span', { class: 'entry-text' },
+          h('b', null, '人物关系'),
+          h('i', null, s.relations.length ? `${s.relations.length} 位故交` : '尚未结识任何人')
         ),
         h('span', { class: 'entry-arrow' }, '›')
       )

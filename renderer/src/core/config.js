@@ -2,6 +2,14 @@
 export const CONFIG = {
   gameTitle: '太玄问道',
   gameSubtitle: '一缕神魂入太玄 · 万般因果问长生',
+  version: '2.0.0',
+
+  // 主界面模式入口（available=false 表示敬请期待）
+  modes: [
+    { key: 'dialogue', icon: 'scroll', title: '对话模式', desc: '与天道对答，以言语书写你的修仙长卷', available: true },
+    { key: 'explore', icon: 'spark', title: '探索模式', desc: '自由漫游山河舆图，踏遍机缘秘境', available: false, badge: '敬请期待' },
+    { key: 'settings', icon: 'talisman', title: '设 置', desc: '画质 · 声音 · AI 接入 · 花费价目', available: true }
+  ],
 
   stats: [
     { key: 'hp',        label: '生命值',   icon: 'heart',   bar: true, color: '#e35d6a', max: 'maxHp' },
@@ -44,6 +52,7 @@ export const CONFIG = {
 
   initialState: {
     name: '无名散修',
+    origin: '', // 出身（固定选项或自由填写，≤100字）
     realmIndex: 0,
     hp: 100, maxHp: 100,
     mp: 60,  maxMp: 60,
@@ -51,6 +60,7 @@ export const CONFIG = {
     cultivation: 0, cultivationCap: 100,
     roots: [], // 灵根 ['jin','mu',...]
     buffs: [], // 常驻增益 [{id,name,desc,mods,day}]
+    relations: [], // 人物关系 [{id,name,identity,relation,affinity,day}]
     activeSkills: [{ name: '御火诀', desc: '焚尽八荒之火，耗法力 12', cost: 12, mult: 1.8 }],
     passiveSkills: [{ name: '吐纳术', desc: '每回合微量恢复生命与法力' }],
     talents: [{ name: '天生剑骨', desc: '剑类攻击额外 +15%' }],
@@ -61,6 +71,16 @@ export const CONFIG = {
     location: 'qingyun',
     day: 1
   },
+
+  // 出身预设（创建角色时可选，也允许自由填写 ≤100 字）
+  origins: [
+    { key: 'sanxiu',  label: '山野散修', desc: '无门无派，于山野间自悟吐纳之法，一人一剑闯荡江湖。' },
+    { key: 'zongmen', label: '宗门弃徒', desc: '曾是名门大派外门弟子，因故被逐出师门，心怀不甘。' },
+    { key: 'shangjia', label: '商贾之子', desc: '生于行商世家，见惯奇珍异宝，揣着盘缠与算盘求仙问道。' },
+    { key: 'shuxiang', label: '书香门第', desc: '世代耕读传家，满腹经纶却弃文从道，以经史参悟天机。' },
+    { key: 'jiangmen', label: '将门之后', desc: '将星之后，家传武艺傍身，沙场戾气未脱，杀伐果断。' },
+    { key: 'nongjia', label: '农家子弟', desc: '面朝黄土背朝天，偶得仙缘入道，吃苦耐劳，心性坚韧。' }
+  ],
 
   // 地图节点（SVG 坐标系 0-1000 x 0-640）
   map: {
@@ -99,6 +119,55 @@ export const CONFIG = {
       guard:  { label: '格挡',     color: '#9a937f' }
     }
   },
+
+  // Token 花费估算价目（单位：元 / 1M tokens；可在设置中自定义覆盖）
+  tokenPricing: {
+    // vendor 级默认价
+    byVendor: {
+      deepseek: { input: 2, output: 8 },
+      moonshot: { input: 4, output: 16 },
+      zhipu:    { input: 5, output: 15 },
+      qwen:     { input: 2, output: 6 },
+      doubao:   { input: 2.4, output: 12 },
+      minimax:  { input: 3, output: 12 },
+      custom:   { input: 2, output: 8 }
+    },
+    // model 级精确价（优先于 vendor 价）
+    byModel: {
+      'deepseek-chat': { input: 2, output: 8 },
+      'deepseek-reasoner': { input: 4, output: 16 },
+      'qwen-turbo': { input: 0.3, output: 0.6 },
+      'qwen-plus': { input: 0.8, output: 2 },
+      'qwen3-max': { input: 6, output: 24 },
+      'qwen-long': { input: 0.5, output: 2 },
+      'glm-4.5-air': { input: 0.8, output: 2 }
+    },
+    currency: '¥'
+  },
+
+  // 花费统计时间尺度：hour/day/week/month/year，支持缩放跨档
+  usageScales: [
+    { key: 'hour',  label: '时', bucketMs: 60 * 1000,          buckets: 60,  fmt: 'HH:mm' },
+    { key: 'day',   label: '天', bucketMs: 60 * 60 * 1000,     buckets: 24,  fmt: 'HH:00' },
+    { key: 'week',  label: '周', bucketMs: 24 * 60 * 60 * 1000, buckets: 7,  fmt: 'MM-dd' },
+    { key: 'month', label: '月', bucketMs: 24 * 60 * 60 * 1000, buckets: 30, fmt: 'MM-dd' },
+    { key: 'year',  label: '年', bucketMs: 30 * 24 * 60 * 60 * 1000, buckets: 12, fmt: 'yyyy-MM' }
+  ],
+
+  // 应用设置默认值（画质 / 声音）
+  appSettings: {
+    quality: 'high',      // low | medium | high（WebGL 渲染精度）
+    volume: 0.6,          // 主音量 0~1
+    muted: false,         // 静音
+    priceInput: null,     // 自定义输入价（元/1M tokens，null 用内置价目）
+    priceOutput: null
+  },
+
+  qualityLevels: [
+    { key: 'low',    label: '流畅', dpr: 0.75, desc: '低分辨率灵雾，省电流畅' },
+    { key: 'medium', label: '均衡', dpr: 1.1,  desc: '适中的渲染精度' },
+    { key: 'high',   label: '极致', dpr: 1.6,  desc: '满精度灵雾与星尘' }
+  ],
 
   // 国内 AI 厂商预设（均为 OpenAI 兼容接口）；模型列表可在线拉取以保证时效性
   vendors: [
@@ -154,6 +223,11 @@ export const CONFIG = {
     temperature: 0.9,
     // 叙事引擎系统提示词：要求模型返回结构化 JSON
     systemPrompt: `你是一款东方修仙文字游戏的"天道叙事引擎"。根据玩家状态与其行动，推进剧情。
+【数据读取协议】首次会提供角色概要；若你需要更详尽的游戏数据再作推演，不要编造——先只输出一个 JSON 请求对象：
+{ "needData": ["域名1","域名2"] }
+系统将回传对应数据文件的内容，你再据此输出正式事件。可多次请求。可用数据域：
+{{DOMAIN_CATALOG}}
+数据充足后，输出正式事件 JSON。
 【输出契约】只输出一个 JSON 对象，不要任何额外文字或代码块标记：
 {
   "event": "120~220字的当前事件描写，文风典雅有仙气，可含对话",
@@ -163,6 +237,7 @@ export const CONFIG = {
   "log": "一句话概括此次行动结果（写入史册）",
   "grantSkill": null 或 { "type":"active|passive|talent", "name":"...", "desc":"...", "cost":0, "mult":1.5 },
   "grantItem": null 或 { "name":"...", "desc":"外观/来历一句话", "effect":"效果说明一句话", "rarity":"pingfan|youxiu|jingliang|shishi|chuanshuo|honghuang|chuyuan", "category":"dan|fabao|gongfa|cailiao|qiwu", "usable":true, "effects":{"hp":0,"cultivation":0}, "grant":null 或 {"skill":{"type":"active|passive","name":"...","desc":"...","cost":0,"mult":1.5}} 或 {"talent":{"name":"...","desc":"..."}} 或 {"buff":{"name":"...","desc":"...","mods":{"atk":0,"pdef":0,"mdef":0,"cultivationPct":0.1}}} },
+  "relations": null 或 [ { "name":"出场角色姓名", "identity":"其身份", "relation":"与主角的关系", "affinity":初始好感-100~100, "delta":好感变化(已登记者用) } ],
   "combat": null 或 { "enemy": { "name":"...", "desc":"...", "hp":80, "atk":10, "pdef":4, "mdef":3, "skills":[{"name":"...","desc":"...","mult":1.4}] }, "playerFirst": true }
 }
 【规则】
@@ -172,7 +247,8 @@ export const CONFIG = {
 4. 当剧情自然走到遭遇敌人（妖兽、魔修、拦路劫修等）时，填 combat 字段触发战斗：enemy 属性需与玩家境界匹配（炼气期敌人 hp 60~120、atk 8~16 为宜，随境界等比提升），playerFirst 依据剧情合理性决定先手权。战斗中敌方行动由你代理（系统会再向你询问）。
 5. grantItem 在玩家获得物品时填写，rarity 越高的物品效果越强、越稀有，红色 honghuang 与白色 chuyuan 极为罕见，慎用（chuyuan 为最高品阶）。
 6. grantSkill 中主动技能(active)需给出 cost(法力消耗)与 mult(伤害倍率 1.2~2.5)。
-7. 物品若可习得心法/天赋或获得常驻增益，用 grantItem.grant 表达：skill 为主动或被动技能、talent 为天赋、buff 为常驻增益（mods 只写非零项：atk/pdef/mdef 为属性加值，cultivationPct 为修为获取加成比例如 0.1）。`
+7. 物品若可习得心法/天赋或获得常驻增益，用 grantItem.grant 表达：skill 为主动或被动技能、talent 为天赋、buff 为常驻增益（mods 只写非零项：atk/pdef/mdef 为属性加值，cultivationPct 为修为获取加成比例如 0.1）。
+8. relations 用于人物关系系统：剧情中有名字的角色登场时必须登记（name/identity/relation/affinity 初始好感，萍水相逢为 0 上下）；已登记角色好感变化时用 name+delta。好感度区间 -100(死敌)~100(至交)。`
   },
 
   // 敌方战斗决策提示词

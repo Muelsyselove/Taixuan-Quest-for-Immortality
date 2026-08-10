@@ -36,8 +36,8 @@ export class SaveLoadModal extends Component {
           }, '存档'),
           h('button', {
             class: 'btn ghost save-newgame',
-            onclick: () => { this.close(); this.props.onNewGame?.(); }
-          }, '新开征程')
+            onclick: () => { this.close(); this.props.onRestart?.(); }
+          }, '重开此角色')
         ),
         this.listEl
       )

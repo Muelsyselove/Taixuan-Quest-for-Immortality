@@ -1,5 +1,6 @@
 // 游戏状态中心：单一数据源 + 订阅发布
 import { CONFIG } from './config.js';
+import { splitState, mergeDomains } from './data.js';
 
 export class GameStore {
   constructor() {
@@ -10,6 +11,7 @@ export class GameStore {
     this.state.busy = false;      // AI 思考中
     this.state.aiReady = false;   // AI 是否已配置
     this.state.combat = null;     // 战斗状态（非 null 即战斗中）
+    this.state.relations = [];    // 人物关系 [{id,name,identity,relation,affinity,day}]
     this._listeners = new Map();  // key -> Set<fn>
     this._uid = 0;
   }
@@ -201,6 +203,49 @@ export class GameStore {
     return true;
   }
 
+  /* ---------- 人物关系 ---------- */
+
+  /**
+   * 注册/更新出场角色：{name, identity, relation, affinity, delta}
+   * - 新角色：登记姓名/身份/关系/初始好感（默认 0）
+   * - 已登记：补充身份/关系描述，好感按 delta 增减（或 affinity 直接设值）
+   */
+  upsertRelation(entry) {
+    if (!entry?.name) return null;
+    const name = String(entry.name).slice(0, 20);
+    const list = [...this.state.relations];
+    const idx = list.findIndex(r => r.name === name);
+    const clampAff = (v) => Math.max(-100, Math.min(100, Math.round(v)));
+
+    if (idx >= 0) {
+      const cur = list[idx];
+      const next = { ...cur };
+      if (entry.identity) next.identity = String(entry.identity).slice(0, 30);
+      if (entry.relation) next.relation = String(entry.relation).slice(0, 40);
+      if (typeof entry.affinity === 'number') next.affinity = clampAff(entry.affinity);
+      if (typeof entry.delta === 'number' && entry.delta) next.affinity = clampAff(next.affinity + entry.delta);
+      if (next.affinity !== cur.affinity) {
+        this.pushHistory(`【${name}】好感${next.affinity > cur.affinity ? '升温' : '转冷'}至 ${next.affinity}`, 'relation');
+      }
+      list[idx] = next;
+      this.set({ relations: list });
+      return next;
+    }
+
+    const fresh = {
+      id: `rl-${Date.now()}-${++this._uid}`,
+      name,
+      identity: String(entry.identity || '身份未明').slice(0, 30),
+      relation: String(entry.relation || '萍水相逢').slice(0, 40),
+      affinity: clampAff(typeof entry.affinity === 'number' ? entry.affinity : 0),
+      day: this.state.day
+    };
+    list.push(fresh);
+    this.set({ relations: list });
+    this.pushHistory(`结识【${fresh.name}】——${fresh.identity}，${fresh.relation}`, 'relation');
+    return fresh;
+  }
+
   /* ---------- 事件 / 史册 ---------- */
 
   setEvent(ev) { this.set({ event: ev }); }
@@ -218,22 +263,42 @@ export class GameStore {
     }
   }
 
-  /* ---------- 存档序列化 ---------- */
+  /* ---------- 存档序列化（按域分文件） ---------- */
 
-  serialize() {
-    // combat 属于易失状态，不入档
-    const { combat, busy, aiReady, ...rest } = this.state;
-    return { version: 2, savedAt: Date.now(), state: structuredClone(rest) };
+  /** 拆分为域文件集合：{ profile: {...}, inventory: {...}, ... } */
+  serializeDomains() {
+    const { combat, busy, aiReady, event, ...persisted } = this.state;
+    return splitState(persisted);
   }
 
+  /** 旧版整树序列化（仅用于读取 legacy 存档时的兼容路径） */
+  serialize() {
+    const { combat, busy, aiReady, ...rest } = this.state;
+    return { version: 3, savedAt: Date.now(), state: structuredClone(rest) };
+  }
+
+  /** 从域文件集合恢复 */
+  deserializeDomains(files) {
+    const partial = mergeDomains(files);
+    if (!Object.keys(partial).length) return false;
+    return this._applyLoaded(partial);
+  }
+
+  /** 旧版整树恢复（兼容） */
   deserialize(data) {
     if (!data?.state) return false;
+    return this._applyLoaded(data.state);
+  }
+
+  _applyLoaded(partialState) {
     const base = structuredClone(CONFIG.initialState);
-    const merged = { ...base, ...data.state };
+    const merged = { ...base, ...partialState };
     merged.realm = CONFIG.realms[merged.realmIndex] ?? CONFIG.realms[0];
     merged.combat = null;
     merged.busy = false;
     merged.event = null; // 重新推进剧情
+    if (!Array.isArray(merged.relations)) merged.relations = [];
+    if (!Array.isArray(merged.history)) merged.history = [];
     this.state = merged;
     this._emit(['*']);
     return true;
@@ -242,7 +307,7 @@ export class GameStore {
   /* ---------- 新开征程：角色设定后重置 ---------- */
 
   /**
-   * @param setup { roots:string[], talents:[], passives:[], actives:[], name?:string }
+   * @param setup { roots:string[], talents:[], passives:[], actives:[], name?:string, origin?:string }
    */
   reset(setup = {}) {
     const fresh = structuredClone(CONFIG.initialState);
@@ -252,8 +317,10 @@ export class GameStore {
     fresh.busy = false;
     fresh.aiReady = this.state.aiReady;
     fresh.combat = null;
+    fresh.relations = [];
 
     if (setup.name) fresh.name = String(setup.name).slice(0, 12);
+    if (setup.origin) fresh.origin = String(setup.origin).slice(0, 100);
     fresh.roots = Array.isArray(setup.roots) ? [...setup.roots] : [];
     if (Array.isArray(setup.talents)) {
       fresh.talents = setup.talents.map(t => {
@@ -290,7 +357,7 @@ export class GameStore {
   snapshot() {
     const s = this.state;
     return {
-      姓名: s.name, 境界: s.realm, 生命: `${s.hp}/${s.maxHp}`, 法力: `${s.mp}/${s.maxMp}`,
+      姓名: s.name, 出身: s.origin || '未明', 境界: s.realm, 生命: `${s.hp}/${s.maxHp}`, 法力: `${s.mp}/${s.maxMp}`,
       攻击: s.atk, 物防: s.pdef, 法防: s.mdef, 修为: `${s.cultivation}/${s.cultivationCap}`,
       灵根: s.roots.map(k => CONFIG.roots.find(r => r.key === k)?.label ?? k).join('、') || '未测',
       主动技能: s.activeSkills.map(x => `${x.name}(耗蓝${x.cost ?? 10},倍率${x.mult ?? 1.5})`),
@@ -298,6 +365,7 @@ export class GameStore {
       天赋: s.talents.map(x => x.name),
       常驻增益: s.buffs.map(x => `${x.name}(${x.desc})`),
       持有物品: s.items.slice(-10).map(x => `${x.name}(${CONFIG.rarities.find(r => r.key === x.rarity)?.label})`),
+      人物关系: s.relations.map(r => `${r.name}(${r.identity}，${r.relation}，好感${r.affinity})`),
       当前地点: CONFIG.map.nodes.find(n => n.id === s.location)?.name,
       地点列表: CONFIG.map.nodes.map(n => `${n.id}=${n.name}`).join('，'),
       天数: s.day

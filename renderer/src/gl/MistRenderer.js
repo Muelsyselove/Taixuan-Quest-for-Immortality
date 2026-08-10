@@ -101,10 +101,17 @@ export class MistRenderer {
     this.mouse = [0.5, 0.5];
     this.mouseTarget = [0.5, 0.5];
     this.intensity = 0;
+    this.maxDpr = 1.6; // 画质上限（设置页可调）
     this._init();
     this._bind();
     this._loop = this._loop.bind(this);
     requestAnimationFrame(this._loop);
+  }
+
+  /** 画质调节：限制渲染分辨率上限 */
+  setQuality(dpr) {
+    this.maxDpr = dpr || 1.6;
+    this._resize();
   }
 
   _compile(type, src) {
@@ -149,7 +156,7 @@ export class MistRenderer {
   }
 
   _resize() {
-    const dpr = Math.min(devicePixelRatio || 1, 1.6);
+    const dpr = Math.min(devicePixelRatio || 1, this.maxDpr ?? 1.6);
     this.canvas.width = innerWidth * dpr;
     this.canvas.height = innerHeight * dpr;
     this.gl?.viewport(0, 0, this.canvas.width, this.canvas.height);

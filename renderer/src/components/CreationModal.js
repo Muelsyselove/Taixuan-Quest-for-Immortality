@@ -1,7 +1,8 @@
 // 角色设定界面：新开征程时的创建向导
-// 灵根(1~5) / 天赋(AI生成·0~3) / 被动技能(AI生成·1~2) / 主动技能(AI生成·与灵根相关·1~2)
+// 姓名(可编辑) / 出身(固定选项或自由填写≤100字) / 灵根(1~5) / 天赋(AI生成·0~3) / 被动(1~2) / 主动(与灵根相关·1~2)
 import { Component, h, icon } from '../core/component.js';
 import { CONFIG } from '../core/config.js';
+import { FormField, TextInput } from '../ui/controls.js';
 
 const SECTIONS = [
   { kind: 'talent',  title: '天赋',     min: 0, max: 3, tip: '天成之质，可弃权不选' },
@@ -13,6 +14,9 @@ export class CreationModal extends Component {
   constructor(store, props) {
     super(store, props);
     // props.engine: NarrativeEngine；props.onComplete(setup)
+    this.name = '';                               // 角色姓名
+    this.originKey = CONFIG.origins[0].key;       // 选中的预设出身
+    this.originFree = '';                         // 自由填写出身（非空时优先）
     this.roots = new Set();                       // 已选灵根 key
     this.cands = { talent: [], passive: [], active: [] };
     this.picks = { talent: new Set(), passive: new Set(), active: new Set() }; // 按 name
@@ -21,7 +25,37 @@ export class CreationModal extends Component {
   }
 
   render() {
-    // 灵根区
+    /* 姓名 */
+    this.nameEl = TextInput({
+      placeholder: '立下道号……（必填）',
+      maxlength: 12,
+      onChange: (v) => { this.name = v.trim(); this._validate(); }
+    });
+
+    /* 出身：预设 + 自由填写 */
+    this.originChipsEl = h('div', { class: 'cr-origins' },
+      CONFIG.origins.map(o => h('button', {
+        class: `cr-origin ${o.key === this.originKey ? 'sel' : ''}`,
+        'data-key': o.key,
+        title: o.desc,
+        onclick: () => this._pickOrigin(o.key)
+      }, o.label))
+    );
+    this.originFreeEl = h('textarea', {
+      class: 'cr-origin-free',
+      placeholder: '或自书出身（≤100 字，填写后优先于此）……',
+      maxlength: 100,
+      rows: 2
+    });
+    this.originFreeEl.addEventListener('input', () => {
+      this.originFree = this.originFreeEl.value.trim();
+      this.originCountEl.textContent = `${this.originFreeEl.value.length}/100`;
+      this._renderOrigins();
+      this._validate();
+    });
+    this.originCountEl = h('span', { class: 'cr-origin-count' }, '0/100');
+
+    /* 灵根区 */
     this.rootsEl = h('div', { class: 'cr-roots' },
       CONFIG.roots.map(r => h('button', {
         class: 'cr-root',
@@ -37,6 +71,22 @@ export class CreationModal extends Component {
           h('span', { class: 'panel-title' }, '角色设定 · 新的征程')
         ),
         h('div', { class: 'cr-scroll' },
+          h('section', { class: 'cr-sec' },
+            h('div', { class: 'cr-sec-head' },
+              h('b', null, '道号'),
+              h('span', { class: 'cr-tip' }, '行走江湖的名号（必填）')
+            ),
+            this.nameEl
+          ),
+          h('section', { class: 'cr-sec' },
+            h('div', { class: 'cr-sec-head' },
+              h('b', null, '出身'),
+              h('span', { class: 'cr-tip' }, '择一预设，或自书出身'),
+              this.originCountEl
+            ),
+            this.originChipsEl,
+            this.originFreeEl
+          ),
           h('section', { class: 'cr-sec' },
             h('div', { class: 'cr-sec-head' },
               h('b', null, '灵根'),
@@ -67,6 +117,33 @@ export class CreationModal extends Component {
     this._refresh('talent');
     this._refresh('passive');
     this._refresh('active');
+    this._validate();
+  }
+
+  /* ---------- 出身 ---------- */
+
+  _pickOrigin(key) {
+    this.originKey = key;
+    this.originFree = '';
+    this.originFreeEl.value = '';
+    this.originCountEl.textContent = '0/100';
+    this._renderOrigins();
+    this._validate();
+  }
+
+  _renderOrigins() {
+    const freeActive = this.originFree.length > 0;
+    for (const btn of this.originChipsEl.children) {
+      const on = btn.dataset.key === this.originKey && !freeActive;
+      btn.classList.toggle('sel', on);
+      btn.classList.toggle('dim', freeActive);
+    }
+  }
+
+  _originText() {
+    if (this.originFree) return this.originFree.slice(0, 100);
+    const hit = CONFIG.origins.find(o => o.key === this.originKey);
+    return hit ? `${hit.label}——${hit.desc}` : '';
   }
 
   /* ---------- 灵根 ---------- */
@@ -166,7 +243,8 @@ export class CreationModal extends Component {
   /* ---------- 校验与完成 ---------- */
 
   _valid() {
-    return this.roots.size >= 1 && this.roots.size <= 5
+    return this.name.length >= 1
+      && this.roots.size >= 1 && this.roots.size <= 5
       && this.picks.talent.size <= 3
       && this.picks.passive.size >= 1 && this.picks.passive.size <= 2
       && this.picks.active.size >= 1 && this.picks.active.size <= 2;
@@ -179,7 +257,8 @@ export class CreationModal extends Component {
     if (btn) btn.disabled = ok ? null : 'disabled';
     if (hint) {
       hint.textContent = ok ? '机缘已备，只待启程。'
-        : this.roots.size < 1 ? '请先择灵根。'
+        : this.name.length < 1 ? '请先立下道号。'
+        : this.roots.size < 1 ? '请择灵根。'
         : this.picks.passive.size < 1 ? '请至少择一门初始被动。'
         : this.picks.active.size < 1 ? '请至少择一门初始主动。' : '';
     }
@@ -189,6 +268,8 @@ export class CreationModal extends Component {
     if (!this._valid()) return;
     const pickObjs = (kind) => this.cands[kind].filter(c => this.picks[kind].has(c.name));
     this.props.onComplete?.({
+      name: this.name.slice(0, 12),
+      origin: this._originText(),
       roots: [...this.roots],
       talents: pickObjs('talent'),
       passives: pickObjs('passive'),

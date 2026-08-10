@@ -91,6 +91,7 @@ export class SettingsModal extends Component {
               this._draft.apiKey = this.keyInput.value.trim();
               this._draft.baseUrl = this.baseUrlInput.value.trim();
               await eng.saveSettings(this._draft);
+              this.props.onSaved?.();
               this.close();
             }
           }, '保存')

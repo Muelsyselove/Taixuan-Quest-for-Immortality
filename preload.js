@@ -10,11 +10,24 @@ contextBridge.exposeInMainWorld('taixuan', {
     read: () => ipcRenderer.invoke('settings:read'),
     write: (data) => ipcRenderer.invoke('settings:write', data)
   },
+  // 角色登记册
+  chars: {
+    list: () => ipcRenderer.invoke('chars:list'),
+    create: (payload) => ipcRenderer.invoke('chars:create', payload),
+    read: (id) => ipcRenderer.invoke('chars:read', id),
+    remove: (id) => ipcRenderer.invoke('chars:delete', id)
+  },
+  // 存档（按角色独立，按域分文件）
   saves: {
-    list: () => ipcRenderer.invoke('saves:list'),
-    read: (slot) => ipcRenderer.invoke('saves:read', slot),
-    write: (slot, data) => ipcRenderer.invoke('saves:write', slot, data),
-    remove: (slot) => ipcRenderer.invoke('saves:delete', slot)
+    list: (charId) => ipcRenderer.invoke('saves:list', charId),
+    read: (charId, slot) => ipcRenderer.invoke('saves:read', charId, slot),
+    write: (charId, slot, payload) => ipcRenderer.invoke('saves:write', charId, slot, payload),
+    remove: (charId, slot) => ipcRenderer.invoke('saves:delete', charId, slot)
+  },
+  // Token 用量统计
+  usage: {
+    record: (entry) => ipcRenderer.invoke('usage:record', entry),
+    read: () => ipcRenderer.invoke('usage:read')
   },
   win: {
     min: () => ipcRenderer.send('win:min'),

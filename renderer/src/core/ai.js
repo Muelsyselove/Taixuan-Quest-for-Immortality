@@ -1,5 +1,9 @@
 // AI 叙事引擎客户端：多厂商 OpenAI 兼容适配；未配置时启用本地兜底叙事
+// 支持 AI 自主读取游戏数据：AI 可输出 {"needData":[域名...]} 请求数据文件，引擎回传后继续推演
 import { CONFIG } from './config.js';
+import { presentDomain, domainCatalog, isDomainKey } from './data.js';
+
+const MAX_DATA_ROUNDS = 3; // 单次推演允许的数据请求轮数上限
 
 export class NarrativeEngine {
   constructor(store) {
@@ -13,20 +17,39 @@ export class NarrativeEngine {
     };
     /** 战斗触发回调（由外部注入 CombatEngine.start） */
     this.onCombatSignal = null;
+    /** 应用设置变更回调（画质/声音等，由 main.js 注入） */
+    this.onAppSettings = null;
+    // 应用级设置（画质/声音/自定义单价），与 AI 设置共用 settings.json
+    this.app = { ...CONFIG.appSettings };
   }
 
   /* ---------- 设置 ---------- */
 
   async loadSettings() {
     const saved = await window.taixuan?.settings.read().catch(() => null);
-    if (saved) Object.assign(this.settings, saved);
+    if (saved) {
+      const { quality, volume, muted, priceInput, priceOutput, ...aiPart } = saved;
+      Object.assign(this.settings, aiPart);
+      Object.assign(this.app, { quality, volume, muted, priceInput, priceOutput });
+      // 允许 null 落回默认
+      for (const k of Object.keys(this.app)) {
+        if (this.app[k] === undefined) this.app[k] = CONFIG.appSettings[k];
+      }
+    }
     this._syncReady();
   }
 
   async saveSettings(patch) {
     Object.assign(this.settings, patch);
-    await window.taixuan?.settings.write({ ...this.settings });
+    await window.taixuan?.settings.write({ ...patch });
     this._syncReady();
+  }
+
+  /** 保存应用级设置（画质/声音/单价），并触发应用回调 */
+  async saveAppSettings(patch) {
+    Object.assign(this.app, patch);
+    await window.taixuan?.settings.write({ ...patch });
+    this.onAppSettings?.(this.app);
   }
 
   _syncReady() {
@@ -40,6 +63,21 @@ export class NarrativeEngine {
       apiKey: this.settings.apiKey
     });
     return resp;
+  }
+
+  /* ---------- Token 用量记录 ---------- */
+
+  async _recordUsage(kind, usage) {
+    if (!usage) return;
+    try {
+      await window.taixuan.usage.record({
+        t: Date.now(), kind,
+        vendor: this.settings.vendor,
+        model: this.settings.model,
+        pt: usage.prompt_tokens ?? 0,
+        ct: usage.completion_tokens ?? 0
+      });
+    } catch { /* 统计失败不影响游戏 */ }
   }
 
   /* ---------- 剧情推进 ---------- */
@@ -59,7 +97,7 @@ export class NarrativeEngine {
     }
   }
 
-  async _chat(messages, temperature) {
+  async _chat(messages, temperature, kind = 'advance') {
     const resp = await window.taixuan.ai.chat({
       baseUrl: this.settings.baseUrl,
       apiKey: this.settings.apiKey,
@@ -67,21 +105,67 @@ export class NarrativeEngine {
       temperature: temperature ?? this.settings.temperature,
       messages
     });
+    if (resp?.ok) this._recordUsage(kind, resp.usage);
     return resp?.ok ? resp.content : null;
   }
 
+  _systemPrompt() {
+    return CONFIG.ai.systemPrompt.replace('{{DOMAIN_CATALOG}}', domainCatalog());
+  }
+
+  /**
+   * AI 推演主循环：先送概要，AI 可通过 needData 自主请求数据域，最多 MAX_DATA_ROUNDS 轮
+   */
   async _callAI(action, opening) {
     const s = this.store;
     const recentHistory = s.get('history').slice(-8).map(h => `第${h.day}日：${h.text}`).join('\n');
     const userContent = opening
-      ? `角色初始状态：${JSON.stringify(s.snapshot())}\n请生成开局事件（主角初入修仙界）。`
-      : `角色状态：${JSON.stringify(s.snapshot())}\n近期史册：\n${recentHistory || '（无）'}\n上一事件：${s.get('event')?.event ?? '（无）'}\n玩家行动：「${action}」\n请推演后续事件。`;
+      ? `角色初始概要：${JSON.stringify(s.snapshot())}\n请生成开局事件（主角初入修仙界）。如需更多数据可先按协议请求。`
+      : `角色概要：${JSON.stringify(s.snapshot())}\n近期史册：\n${recentHistory || '（无）'}\n上一事件：${s.get('event')?.event ?? '（无）'}\n玩家行动：「${action}」\n请推演后续事件。如需更多数据可先按协议请求。`;
 
-    const content = await this._chat([
-      { role: 'system', content: CONFIG.ai.systemPrompt },
+    const messages = [
+      { role: 'system', content: this._systemPrompt() },
       { role: 'user', content: userContent }
-    ]);
-    return content ? this._parseJSON(content) : null;
+    ];
+
+    for (let round = 0; round <= MAX_DATA_ROUNDS; round++) {
+      const content = await this._chat(messages, undefined, 'advance');
+      if (!content) return null;
+
+      const req = this._parseDataRequest(content);
+      // 最后一轮仍要数据则强制作出事件（由 _parseJSON 尝试兜底）
+      if (req && round < MAX_DATA_ROUNDS) {
+        messages.push({ role: 'assistant', content });
+        messages.push({ role: 'user', content: this._buildDataReply(req) });
+        continue;
+      }
+      return this._parseJSON(content);
+    }
+    return null;
+  }
+
+  /** 解析 AI 的数据请求：{"needData":["profile",...]} */
+  _parseDataRequest(text) {
+    try {
+      const m = text.match(/\{[\s\S]*\}/);
+      if (!m) return null;
+      const data = JSON.parse(m[0]);
+      if (!Array.isArray(data.needData)) return null;
+      const keys = data.needData.map(String).filter(isDomainKey);
+      return keys.length ? keys : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 将 AI 请求的数据域内容打包为一条用户消息 */
+  _buildDataReply(keys) {
+    const bundle = {};
+    for (const k of keys) {
+      const d = presentDomain(this.store.state, k);
+      if (d) bundle[k] = d;
+    }
+    return `【数据回传】以下为请求的游戏数据文件内容：\n${JSON.stringify(bundle)}\n请据此输出正式事件 JSON。`;
   }
 
   _parseJSON(text) {
@@ -98,6 +182,7 @@ export class NarrativeEngine {
         log: typeof data.log === 'string' ? data.log : null,
         grantSkill: data.grantSkill && typeof data.grantSkill === 'object' ? data.grantSkill : null,
         grantItem: data.grantItem && typeof data.grantItem === 'object' ? data.grantItem : null,
+        relations: Array.isArray(data.relations) ? data.relations.filter(r => r && typeof r === 'object') : null,
         combat: data.combat && typeof data.combat === 'object' && data.combat.enemy ? data.combat : null
       };
     } catch {
@@ -112,7 +197,7 @@ export class NarrativeEngine {
       const content = await this._chat([
         { role: 'system', content: CONFIG.combatPrompt },
         { role: 'user', content: `战斗状态：${JSON.stringify(snapshot)}` }
-      ], 0.6);
+      ], 0.6, 'combat');
       if (content) {
         try {
           const m = content.match(/\{[\s\S]*\}/);
@@ -153,7 +238,7 @@ export class NarrativeEngine {
       const content = await this._chat([
         { role: 'system', content: CONFIG.creationPrompt },
         { role: 'user', content: JSON.stringify({ 类型: kind, 灵根: rootLabels, 数量: 8 }) }
-      ], 0.95);
+      ], 0.95, 'creation');
       const list = this._parseArray(content);
       if (list?.length) return list;
     }
@@ -202,7 +287,7 @@ export class NarrativeEngine {
         event: '你于雷雨之夜穿越至太玄大陆，醒来时躺在一处山神庙中，怀中多了一枚温润的玉简。庙外云海翻腾，隐约有钟鸣自山巅传来——那里是青云门的方向。',
         options: ['前往青云门拜师', '研究怀中玉简', '下山历练闯荡', '在庙中闭关吐纳'],
         effects: { cultivation: 5 }, location: 'qingyun',
-        log: '魂穿太玄，山神庙中得玉简', grantSkill: null, grantItem: null, combat: null
+        log: '魂穿太玄，山神庙中得玉简', grantSkill: null, grantItem: null, relations: null, combat: null
       };
     }
     // 概率触发战斗
@@ -221,7 +306,7 @@ export class NarrativeEngine {
         options: ['拔剑迎战', '且战且退', '观其破绽', '喝问来意'],
         effects: {}, location: null,
         log: `遭遇【${base.name}】`,
-        grantSkill: null, grantItem: null,
+        grantSkill: null, grantItem: null, relations: null,
         combat: { enemy, playerFirst }
       };
     }
@@ -236,6 +321,7 @@ export class NarrativeEngine {
       log: `行「${String(action).slice(0, 12)}」——${pick.log}`,
       grantSkill: seed % 11 === 0 ? { type: 'passive', name: '灵犀一瞬', desc: '偶有所悟，修为获取 +10%' } : null,
       grantItem: seed % 5 === 0 ? { ...F.loot[seed % F.loot.length] } : null,
+      relations: seed % 6 === 0 ? [{ name: '云游散人', identity: '萍水相逢的散修', relation: '一面之缘', affinity: 5 }] : null,
       combat: null
     };
   }
@@ -249,6 +335,10 @@ export class NarrativeEngine {
     if (result.location) s.setLocation(result.location);
     if (result.grantSkill) s.grantSkill(result.grantSkill);
     if (result.grantItem) s.addItem(result.grantItem);
+    // 人物关系登记/好感变化
+    if (Array.isArray(result.relations)) {
+      for (const r of result.relations) s.upsertRelation(r);
+    }
     s.setEvent({ event: result.event, options: result.options });
     s.nextDay();
 
