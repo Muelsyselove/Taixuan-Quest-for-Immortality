@@ -2,7 +2,7 @@
 export const CONFIG = {
   gameTitle: '太玄问道',
   gameSubtitle: '一缕神魂入太玄 · 万般因果问长生',
-  version: '2.0.0',
+  version: '2.1.0',
 
   // 主界面模式入口（available=false 表示敬请期待）
   modes: [
@@ -61,9 +61,10 @@ export const CONFIG = {
     roots: [], // 灵根 ['jin','mu',...]
     buffs: [], // 常驻增益 [{id,name,desc,mods,day}]
     relations: [], // 人物关系 [{id,name,identity,relation,affinity,day}]
-    activeSkills: [{ name: '御火诀', desc: '焚尽八荒之火，耗法力 12', cost: 12, mult: 1.8 }],
-    passiveSkills: [{ name: '吐纳术', desc: '每回合微量恢复生命与法力' }],
-    talents: [{ name: '天生剑骨', desc: '剑类攻击额外 +15%' }],
+    activeSkills: [{ name: '御火诀', desc: '焚尽八荒之火', cost: 12, mult: 1.8, root: 'huo' }],
+    passiveSkills: [{ name: '吐纳术', desc: '呼吸吐纳，每回合回血 1、回蓝 1', mods: { hpRegen: 1, mpRegen: 1 } }],
+    talents: [{ name: '天生剑骨', desc: '剑心天成，攻击 +5%', mods: { atkPct: 0.05 } }],
+    customSkills: { active: [], passive: [] }, // 存档专属技能（AI 剧情需要时注册，仅当前存档生效）
     items: [
       { id: 'seed-1', name: '粗制回气丹', desc: '山脚下药铺最常见的丹药，带着淡淡的苦味。', effect: '恢复 30 点生命', rarity: 'pingfan', category: 'dan', day: 1, usable: true, effects: { hp: 30 } },
       { id: 'seed-2', name: '残破玉简', desc: '穿越时怀中所藏，表面裂纹中隐有光纹流转。', effect: '参悟后修为 +20', rarity: 'jingliang', category: 'gongfa', day: 1, usable: true, effects: { cultivation: 20 } }
@@ -104,43 +105,37 @@ export const CONFIG = {
     ]
   },
 
-  // 战斗系统常量
+  // 战斗系统常量（buff 效果定义见 core/fx.js 效果层）
   combat: {
     critChance: 0.15,
     critMult: 1.5,
     guardReduce: 0.5,   // 防御减伤
-    fleeChance: 0.55,   // 基础逃跑成功率
-    buffKinds: {
-      atkUp:  { label: '攻击提升', color: '#e8a34f' },
-      defUp:  { label: '防御提升', color: '#5aa9e6' },
-      poison: { label: '中毒',     color: '#6fcF7f' },
-      regen:  { label: '回复',     color: '#7fb3a8' },
-      stun:   { label: '眩晕',     color: '#b07fe8' },
-      guard:  { label: '格挡',     color: '#9a937f' }
-    }
+    fleeChance: 0.55    // 基础逃跑成功率
   },
 
   // Token 花费估算价目（单位：元 / 1M tokens；可在设置中自定义覆盖）
+  // cache = 缓存命中输入价（命中部分远低于普通输入价）；缺省时按 cacheRatio × input 折算
   tokenPricing: {
+    cacheRatio: 0.25,
     // vendor 级默认价
     byVendor: {
-      deepseek: { input: 2, output: 8 },
-      moonshot: { input: 4, output: 16 },
-      zhipu:    { input: 5, output: 15 },
-      qwen:     { input: 2, output: 6 },
-      doubao:   { input: 2.4, output: 12 },
-      minimax:  { input: 3, output: 12 },
-      custom:   { input: 2, output: 8 }
+      deepseek: { input: 2, output: 8, cache: 0.5 },
+      moonshot: { input: 4, output: 16, cache: 1 },
+      zhipu:    { input: 5, output: 15, cache: 1 },
+      qwen:     { input: 2, output: 6, cache: 0.5 },
+      doubao:   { input: 2.4, output: 12, cache: 0.6 },
+      minimax:  { input: 3, output: 12, cache: 0.8 },
+      custom:   { input: 2, output: 8, cache: 0.5 }
     },
     // model 级精确价（优先于 vendor 价）
     byModel: {
-      'deepseek-chat': { input: 2, output: 8 },
-      'deepseek-reasoner': { input: 4, output: 16 },
-      'qwen-turbo': { input: 0.3, output: 0.6 },
-      'qwen-plus': { input: 0.8, output: 2 },
-      'qwen3-max': { input: 6, output: 24 },
-      'qwen-long': { input: 0.5, output: 2 },
-      'glm-4.5-air': { input: 0.8, output: 2 }
+      'deepseek-chat': { input: 2, output: 8, cache: 0.5 },
+      'deepseek-reasoner': { input: 4, output: 16, cache: 1 },
+      'qwen-turbo': { input: 0.3, output: 0.6, cache: 0.08 },
+      'qwen-plus': { input: 0.8, output: 2, cache: 0.2 },
+      'qwen3-max': { input: 6, output: 24, cache: 1.5 },
+      'qwen-long': { input: 0.5, output: 2, cache: 0.12 },
+      'glm-4.5-air': { input: 0.8, output: 2, cache: 0.2 }
     },
     currency: '¥'
   },
@@ -160,7 +155,8 @@ export const CONFIG = {
     volume: 0.6,          // 主音量 0~1
     muted: false,         // 静音
     priceInput: null,     // 自定义输入价（元/1M tokens，null 用内置价目）
-    priceOutput: null
+    priceOutput: null,
+    priceCache: null      // 自定义缓存命中价（元/1M tokens，null 用内置价目/折算）
   },
 
   qualityLevels: [
@@ -235,8 +231,9 @@ export const CONFIG = {
   "effects": { "hp":0, "mp":0, "atk":0, "pdef":0, "mdef":0, "cultivation":0 },
   "location": "地点id，必须来自给定地点列表，若未移动则保持原值",
   "log": "一句话概括此次行动结果（写入史册）",
-  "grantSkill": null 或 { "type":"active|passive|talent", "name":"...", "desc":"...", "cost":0, "mult":1.5 },
-  "grantItem": null 或 { "name":"...", "desc":"外观/来历一句话", "effect":"效果说明一句话", "rarity":"pingfan|youxiu|jingliang|shishi|chuanshuo|honghuang|chuyuan", "category":"dan|fabao|gongfa|cailiao|qiwu", "usable":true, "effects":{"hp":0,"cultivation":0}, "grant":null 或 {"skill":{"type":"active|passive","name":"...","desc":"...","cost":0,"mult":1.5}} 或 {"talent":{"name":"...","desc":"..."}} 或 {"buff":{"name":"...","desc":"...","mods":{"atk":0,"pdef":0,"mdef":0,"cultivationPct":0.1}}} },
+  "grantSkill": null 或 { "type":"active|passive|talent", "name":"..." },
+  "registerSkill": null 或 存档专属技能完整定义（见规则7，慎用）,
+  "grantItem": null 或 { "name":"...", "desc":"外观/来历一句话", "effect":"效果说明一句话", "rarity":"pingfan|youxiu|jingliang|shishi|chuanshuo|honghuang|chuyuan", "category":"dan|fabao|gongfa|cailiao|qiwu", "usable":true, "effects":{"hp":0,"cultivation":0}, "grant":null 或 {"skill":{"type":"active|passive","name":"技能库技能名"}} 或 {"talent":{"name":"...","desc":"...","mods":{...}}} 或 {"buff":{"name":"...","desc":"...","mods":{"atk":0,"cultivationPct":0.1}}} },
   "relations": null 或 [ { "name":"出场角色姓名", "identity":"其身份", "relation":"与主角的关系", "affinity":初始好感-100~100, "delta":好感变化(已登记者用) } ],
   "combat": null 或 { "enemy": { "name":"...", "desc":"...", "hp":80, "atk":10, "pdef":4, "mdef":3, "skills":[{"name":"...","desc":"...","mult":1.4}] }, "playerFirst": true }
 }
@@ -244,11 +241,12 @@ export const CONFIG = {
 1. options 给出 4 个风格迥异的预选项（莽撞/谨慎/机巧/随缘）。
 2. effects 只写发生变化的属性，可为负；修为足够时剧情可暗示突破，境界提升由系统判定。
 3. 剧情需连贯参考史册；玩家生命归零由系统处理陨落或重生。
-4. 当剧情自然走到遭遇敌人（妖兽、魔修、拦路劫修等）时，填 combat 字段触发战斗：enemy 属性需与玩家境界匹配（炼气期敌人 hp 60~120、atk 8~16 为宜，随境界等比提升），playerFirst 依据剧情合理性决定先手权。战斗中敌方行动由你代理（系统会再向你询问）。
+4. 当剧情自然走到遭遇敌人（妖兽、魔修、拦路劫修等）时，填 combat 字段触发战斗：enemy 属性需与玩家境界匹配（炼气期敌人 hp 60~120、atk 8~16 为宜，随境界等比提升），playerFirst 依据剧情合理性决定先手权。战斗中敌方行动由你代理（系统会再向你询问）。敌方 skills 除 mult 伤害倍率外，还可选填结构化字段：healMult 治疗倍率、shieldLayers 次数盾层数、barrierMult 屏障倍率、buffs 状态（如 {"target":"enemy","name":"灼烧","turns":2,"effects":[{"key":"burn","mult":0.3}]}；可用效果 key：poison(pct)/burn(mult)/regen(pct)/mpRegen(value)/stun/counter(pct)/dodge(pct)/summon(mult)/statUp|statDown(stat,pct)）。
 5. grantItem 在玩家获得物品时填写，rarity 越高的物品效果越强、越稀有，红色 honghuang 与白色 chuyuan 极为罕见，慎用（chuyuan 为最高品阶）。
-6. grantSkill 中主动技能(active)需给出 cost(法力消耗)与 mult(伤害倍率 1.2~2.5)。
-7. 物品若可习得心法/天赋或获得常驻增益，用 grantItem.grant 表达：skill 为主动或被动技能、talent 为天赋、buff 为常驻增益（mods 只写非零项：atk/pdef/mdef 为属性加值，cultivationPct 为修为获取加成比例如 0.1）。
-8. relations 用于人物关系系统：剧情中有名字的角色登场时必须登记（name/identity/relation/affinity 初始好感，萍水相逢为 0 上下）；已登记角色好感变化时用 name+delta。好感度区间 -100(死敌)~100(至交)。`
+6. 授予主动/被动技能（grantSkill 的 active|passive，及 grantItem.grant.skill）必须从系统技能库中按名称选取——先通过 needData 请求 "library" 域查阅技能库目录，再填 { "type":"active|passive", "name":"库中技能名" }，只需名称，耗蓝/倍率/效果由系统按库定义结算。玩家只能习得与其灵根相符的属性技能（无属性技能皆可学）。
+7. registerSkill 仅当剧情确实需要库中不存在的技能时（如独门传承、上古秘术）才使用，会创建独属当前存档的技能：主动须给出 { "type":"active", "name":"...", "desc":"...", "cost":0, "mult":0~3.5, "healMult":0~3, "shieldLayers":1~3, "barrierMult":0~2.5, "buffs":[...] }（按需选填，数值必须明确）；被动须给出 { "type":"passive", "name":"...", "desc":"...", "mods":{...} }。此技能仅当前存档及其后续存档生效，切勿滥用。
+8. 天赋（grantSkill type="talent" 或 grantItem.grant.talent）由你自由拟定，但必须在 mods 中给出明确数值，desc 文案与数值一致。mods 可用键：atk/pdef/mdef/maxHp/maxMp 固定值；atkPct/pdefPct/mdefPct 比例（0.05=+5%）；crit 会心率、dodge 闪避率、counterPct 反伤比例；hpRegen/mpRegen 战斗每回合回复；cultivationPct 修为获取加成比例。
+9. relations 用于人物关系系统：剧情中有名字的角色登场时必须登记（name/identity/relation/affinity 初始好感，萍水相逢为 0 上下）；已登记角色好感变化时用 name+delta。好感度区间 -100(死敌)~100(至交)。`
   },
 
   // 敌方战斗决策提示词
@@ -257,66 +255,29 @@ export const CONFIG = {
 { "action": "attack" | "skill" | "guard", "skill": "技能名(action为skill时必填)", "narration": "一句战斗描写(30字内)" }
 【策略】血量低时可 guard 防守蓄势；技能伤害高但不可连续使用同一招超过两次；偶尔普攻即可。`,
 
-  // 角色创建生成提示词（天赋/被动/主动技能候选）
-  creationPrompt: `你是修仙游戏的角色创建生成器。根据请求生成候选条目，只输出 JSON 数组，不要任何额外文字。
-【输入】{ "类型": "talent|passive|active", "灵根": ["金","木",...], "数量": 8 }
-【输出】
-- talent（天赋）: [{"name":"2~4字雅名","desc":"一句话天赋效果（如根骨、悟法、机缘等方向）"}, ...]
-- passive（被动技能）: [{"name":"2~5字","desc":"一句话常驻效果"}, ...]
-- active（主动技能，必须与给定灵根属性相关，每个标注 root）: [{"name":"...","desc":"一句话招式描写","cost":8~20,"mult":1.2~2.2,"root":"金|木|水|火|土"}, ...]
-【规则】名称雅致有仙气、互不重复；数量不足时可少给，但不少于 5 个。`,
+  // 角色创建生成提示词（天赋候选；主动/被动技能一律取自系统技能库，不再由 AI 生成）
+  creationPrompt: `你是修仙游戏的角色创建生成器。根据请求生成候选天赋，只输出 JSON 数组，不要任何额外文字。
+【输入】{ "类型": "talent", "灵根": ["金","木",...], "数量": 8 }
+【输出】[{"name":"2~4字雅名","desc":"一句话天赋效果，须写明数值","mods":{...}}, ...]
+【mods 可用键】atk/pdef/mdef/maxHp/maxMp 固定值加成；atkPct/pdefPct/mdefPct 比例加成（0.05=+5%）；crit 会心率、dodge 闪避率、counterPct 反伤比例；hpRegen/mpRegen 战斗每回合回复；cultivationPct 修为获取加成比例。
+【规则】名称雅致有仙气、互不重复；凡能明确数值的效果必须在 mods 中给出明确数值，且 desc 文案与 mods 数值一致；数量不足时可少给，但不少于 5 个。`,
 
-  // 角色创建本地兜底候选池（未配置 AI 时使用）
+  // 角色创建本地兜底候选池（未配置 AI 时使用；技能候选由系统技能库提供，见 skills.js）
   creation: {
     talents: [
-      { name: '天生剑骨', desc: '剑类攻击额外 +15%' },
+      { name: '天生剑骨', desc: '剑心天成，攻击 +5%', mods: { atkPct: 0.05 } },
       { name: '道心通明', desc: '悟性过人，修为获取 +10%', mods: { cultivationPct: 0.1 } },
-      { name: '百毒不侵', desc: '百毒难伤，异常状态抗性提升' },
+      { name: '百毒不侵', desc: '百毒难伤，法防 +3', mods: { mdef: 3 } },
       { name: '夜观星象', desc: '偶能窥得天机，机缘事件更易出现' },
       { name: '饕餮之胃', desc: '丹药效果额外提升两成' },
-      { name: '草木亲和', desc: '行走山野更易寻得灵草' },
+      { name: '草木亲和', desc: '草木有灵，战斗每回合回血 2', mods: { hpRegen: 2 } },
       { name: '福缘深厚', desc: '奇遇频发，战利品更为丰厚' },
-      { name: '过目不忘', desc: '参悟典籍事半功倍' },
-      { name: '铁血战意', desc: '战斗中愈战愈勇' },
-      { name: '灵气漩涡', desc: '法力恢复速度远超同侪' }
-    ],
-    passives: [
-      { name: '吐纳术', desc: '每回合微量恢复生命与法力' },
-      { name: '龟息术', desc: '气息绵长，行动后小幅回复生命' },
-      { name: '铁布衫', desc: '皮肉坚韧，物理防御 +2', mods: { pdef: 2 } },
-      { name: '清心诀', desc: '心境澄明，法术防御 +2', mods: { mdef: 2 } },
-      { name: '轻身术', desc: '身形如风，更容易脱身' },
-      { name: '凝神气', desc: '神气内守，攻击 +2', mods: { atk: 2 } },
-      { name: '回春功', desc: '气血悠长，生命上限提升' },
-      { name: '听涛诀', desc: '感知敏锐，先手概率提升' }
-    ],
-    actives: {
-      jin: [
-        { name: '金刃斩', desc: '凝金气为刃，无坚不摧', cost: 10, mult: 1.6, root: 'jin' },
-        { name: '破甲剑气', desc: '剑气凌冽，专破护体罡气', cost: 14, mult: 2.0, root: 'jin' },
-        { name: '金钟镇魂', desc: '金声浩荡，震慑敌胆', cost: 12, mult: 1.5, root: 'jin' }
-      ],
-      mu: [
-        { name: '青藤缚', desc: '青藤破土而出，缠敌伤敌', cost: 10, mult: 1.5, root: 'mu' },
-        { name: '枯木逢春', desc: '木灵生生不息，伤中带愈', cost: 14, mult: 1.8, root: 'mu' },
-        { name: '万叶飞刀', desc: '落叶皆成利刃', cost: 12, mult: 1.7, root: 'mu' }
-      ],
-      shui: [
-        { name: '寒冰刺', desc: '寒水凝刺，透骨三分', cost: 10, mult: 1.6, root: 'shui' },
-        { name: '怒涛卷', desc: '狂澜骤起，席卷敌身', cost: 14, mult: 2.0, root: 'shui' },
-        { name: '镜水诀', desc: '水镜映影，扰敌心神', cost: 12, mult: 1.5, root: 'shui' }
-      ],
-      huo: [
-        { name: '御火诀', desc: '焚尽八荒之火', cost: 12, mult: 1.8, root: 'huo' },
-        { name: '烈阳焚空', desc: '烈阳当空，烈焰焚敌', cost: 15, mult: 2.1, root: 'huo' },
-        { name: '星火燎原', desc: '星火一点，燎原千里', cost: 10, mult: 1.6, root: 'huo' }
-      ],
-      tu: [
-        { name: '落岩击', desc: '巨石自天而落', cost: 10, mult: 1.6, root: 'tu' },
-        { name: '地龙翻身', desc: '大地震颤，地龙突袭', cost: 14, mult: 2.0, root: 'tu' },
-        { name: '尘沙障', desc: '飞沙走石，伤敌蔽目', cost: 12, mult: 1.5, root: 'tu' }
-      ]
-    }
+      { name: '过目不忘', desc: '参悟典籍事半功倍，修为获取 +5%', mods: { cultivationPct: 0.05 } },
+      { name: '铁血战意', desc: '愈战愈勇，攻击 +3', mods: { atk: 3 } },
+      { name: '灵气漩涡', desc: '法力生生不息，战斗每回合回蓝 2', mods: { mpRegen: 2 } },
+      { name: '钢筋铁骨', desc: '筋骨强健，生命上限 +15', mods: { maxHp: 15 } },
+      { name: '身轻如燕', desc: '身法飘然，常驻闪避 +4%', mods: { dodge: 0.04 } }
+    ]
   },
 
   // 未配置 API 时的本地叙事兜底

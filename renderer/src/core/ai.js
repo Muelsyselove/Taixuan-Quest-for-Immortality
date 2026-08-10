@@ -1,7 +1,9 @@
 // AI 叙事引擎客户端：多厂商 OpenAI 兼容适配；未配置时启用本地兜底叙事
 // 支持 AI 自主读取游戏数据：AI 可输出 {"needData":[域名...]} 请求数据文件，引擎回传后继续推演
+// 伪域 "library"：系统技能库目录（见 skills.js），授予技能前 AI 必须先查阅
 import { CONFIG } from './config.js';
 import { presentDomain, domainCatalog, isDomainKey } from './data.js';
+import { presentLibrary, libraryFor } from './skills.js';
 
 const MAX_DATA_ROUNDS = 3; // 单次推演允许的数据请求轮数上限
 
@@ -28,9 +30,9 @@ export class NarrativeEngine {
   async loadSettings() {
     const saved = await window.taixuan?.settings.read().catch(() => null);
     if (saved) {
-      const { quality, volume, muted, priceInput, priceOutput, ...aiPart } = saved;
+      const { quality, volume, muted, priceInput, priceOutput, priceCache, ...aiPart } = saved;
       Object.assign(this.settings, aiPart);
-      Object.assign(this.app, { quality, volume, muted, priceInput, priceOutput });
+      Object.assign(this.app, { quality, volume, muted, priceInput, priceOutput, priceCache });
       // 允许 null 落回默认
       for (const k of Object.keys(this.app)) {
         if (this.app[k] === undefined) this.app[k] = CONFIG.appSettings[k];
@@ -65,17 +67,29 @@ export class NarrativeEngine {
     return resp;
   }
 
-  /* ---------- Token 用量记录 ---------- */
+  /* ---------- Token 用量记录（输入/输出分项 + 缓存命中） ---------- */
 
   async _recordUsage(kind, usage) {
     if (!usage) return;
     try {
+      const pt = usage.prompt_tokens ?? 0;
+      let ch = usage.prompt_cache_hit_tokens;
+      let cm = usage.prompt_cache_miss_tokens;
+      if (ch == null && cm == null) {
+        ch = 0; cm = 0; // 厂商未回传缓存字段：全部视为普通输入
+      } else {
+        // 只回传一侧时按 pt 补全另一侧
+        if (ch == null) ch = pt - (cm ?? 0);
+        if (cm == null) cm = pt - ch;
+      }
+      ch = Math.max(0, Math.min(pt, Math.round(ch)));
+      cm = Math.max(0, Math.min(pt, Math.round(cm)));
       await window.taixuan.usage.record({
         t: Date.now(), kind,
         vendor: this.settings.vendor,
         model: this.settings.model,
-        pt: usage.prompt_tokens ?? 0,
-        ct: usage.completion_tokens ?? 0
+        pt, ct: usage.completion_tokens ?? 0,
+        ch, cm
       });
     } catch { /* 统计失败不影响游戏 */ }
   }
@@ -144,14 +158,14 @@ export class NarrativeEngine {
     return null;
   }
 
-  /** 解析 AI 的数据请求：{"needData":["profile",...]} */
+  /** 解析 AI 的数据请求：{"needData":["profile",...]}（"library" 为技能库伪域） */
   _parseDataRequest(text) {
     try {
       const m = text.match(/\{[\s\S]*\}/);
       if (!m) return null;
       const data = JSON.parse(m[0]);
       if (!Array.isArray(data.needData)) return null;
-      const keys = data.needData.map(String).filter(isDomainKey);
+      const keys = data.needData.map(String).filter(k => isDomainKey(k) || k === 'library');
       return keys.length ? keys : null;
     } catch {
       return null;
@@ -162,6 +176,7 @@ export class NarrativeEngine {
   _buildDataReply(keys) {
     const bundle = {};
     for (const k of keys) {
+      if (k === 'library') { bundle.library = presentLibrary(); continue; }
       const d = presentDomain(this.store.state, k);
       if (d) bundle[k] = d;
     }
@@ -181,6 +196,7 @@ export class NarrativeEngine {
         location: typeof data.location === 'string' ? data.location : null,
         log: typeof data.log === 'string' ? data.log : null,
         grantSkill: data.grantSkill && typeof data.grantSkill === 'object' ? data.grantSkill : null,
+        registerSkill: data.registerSkill && typeof data.registerSkill === 'object' ? data.registerSkill : null,
         grantItem: data.grantItem && typeof data.grantItem === 'object' ? data.grantItem : null,
         relations: Array.isArray(data.relations) ? data.relations.filter(r => r && typeof r === 'object') : null,
         combat: data.combat && typeof data.combat === 'object' && data.combat.enemy ? data.combat : null
@@ -225,14 +241,18 @@ export class NarrativeEngine {
     return { action: 'attack', narration: '' };
   }
 
-  /* ---------- 角色创建候选生成（AI / 本地池兜底） ---------- */
+  /* ---------- 角色创建候选生成 ---------- */
 
   /**
    * @param kind 'talent' | 'passive' | 'active'
    * @param rootKeys 已选灵根 key 数组（主动技能需与之相关）
    * @returns Promise<Array> 候选条目
+   * 主动/被动技能一律取自系统技能库（不再由 AI 生成）；仅天赋由 AI 生成（本地池兜底）。
    */
   async generateCreation(kind, rootKeys = []) {
+    if (kind === 'active' || kind === 'passive') {
+      return this._librarySample(kind, rootKeys);
+    }
     if (this.store.get('aiReady')) {
       const rootLabels = rootKeys.map(k => CONFIG.roots.find(r => r.key === k)?.label ?? k);
       const content = await this._chat([
@@ -243,6 +263,14 @@ export class NarrativeEngine {
       if (list?.length) return list;
     }
     return this._creationFallback(kind, rootKeys);
+  }
+
+  /** 从技能库抽样候选：主动仅取已选灵根对应属性+无属性；被动取全库（含无属性） */
+  _librarySample(kind, rootKeys) {
+    const type = kind === 'active' ? 'active' : 'passive';
+    const keys = rootKeys.length ? rootKeys : CONFIG.roots.map(r => r.key);
+    const pool = libraryFor(keys, type);
+    return [...pool].sort(() => Math.random() - 0.5).slice(0, 8).map(x => ({ ...x }));
   }
 
   _parseArray(text) {
@@ -271,11 +299,7 @@ export class NarrativeEngine {
     const C = CONFIG.creation;
     const sample = (arr, n) => [...arr].sort(() => Math.random() - 0.5).slice(0, n);
     if (kind === 'talent') return sample(C.talents, 8).map(x => ({ ...x }));
-    if (kind === 'passive') return sample(C.passives, 8).map(x => ({ ...x }));
-    // active：仅取已选灵根对应技能（未选灵根时给全部）
-    const keys = rootKeys.length ? rootKeys : Object.keys(C.actives);
-    const pool = keys.flatMap(k => (C.actives[k] || []).map(x => ({ ...x })));
-    return sample(pool, Math.min(8, pool.length));
+    return this._librarySample(kind, rootKeys); // 技能候选由系统技能库提供
   }
 
   /* ---------- 本地兜底叙事 ---------- */
@@ -313,13 +337,21 @@ export class NarrativeEngine {
     const pick = F.events[Math.floor(Math.random() * F.events.length)];
     const seed = [...String(action)].reduce((a, c) => a + c.charCodeAt(0), 0);
     const jitter = (n) => Math.round(n * (0.6 + ((seed % 7) / 10)));
+    // 兜底授予：从技能库按灵根取一门被动（库外技能须走 registerSkill，不可凭空授予）
+    let grantSkill = null;
+    if (seed % 11 === 0) {
+      const roots = this.store.state.roots;
+      const pool = libraryFor(roots.length ? roots : ['wu'], 'passive');
+      const hit = pool[seed % pool.length];
+      if (hit) grantSkill = { type: 'passive', name: hit.name };
+    }
     return {
       event: pick.event,
       options: pick.options,
       effects: Object.fromEntries(Object.entries(pick.effects).map(([k, v]) => [k, jitter(v)])),
       location: pick.location,
       log: `行「${String(action).slice(0, 12)}」——${pick.log}`,
-      grantSkill: seed % 11 === 0 ? { type: 'passive', name: '灵犀一瞬', desc: '偶有所悟，修为获取 +10%' } : null,
+      grantSkill,
       grantItem: seed % 5 === 0 ? { ...F.loot[seed % F.loot.length] } : null,
       relations: seed % 6 === 0 ? [{ name: '云游散人', identity: '萍水相逢的散修', relation: '一面之缘', affinity: 5 }] : null,
       combat: null
@@ -334,6 +366,7 @@ export class NarrativeEngine {
     s.applyEffects(result.effects);
     if (result.location) s.setLocation(result.location);
     if (result.grantSkill) s.grantSkill(result.grantSkill);
+    if (result.registerSkill) s.registerCustomSkill(result.registerSkill);
     if (result.grantItem) s.addItem(result.grantItem);
     // 人物关系登记/好感变化
     if (Array.isArray(result.relations)) {

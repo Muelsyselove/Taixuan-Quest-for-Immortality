@@ -6,19 +6,28 @@ export const ZOOM_MIN = 0.5;
 export const ZOOM_MAX = 2;
 export const ZOOM_STEP = 1.25;
 
-/** 单价解析：自定义覆盖 > model 价目 > vendor 价目 > 兜底 */
+/** 单价解析：自定义覆盖 > model 价目 > vendor 价目 > 兜底；缓存命中价缺省按 cacheRatio 折算输入价 */
 export function resolvePrice(app, vendor, model) {
   const P = CONFIG.tokenPricing;
   const base = P.byModel[model] || P.byVendor[vendor] || P.byVendor.custom;
   return {
     input: typeof app.priceInput === 'number' ? app.priceInput : base.input,
-    output: typeof app.priceOutput === 'number' ? app.priceOutput : base.output
+    output: typeof app.priceOutput === 'number' ? app.priceOutput : base.output,
+    cache: typeof app.priceCache === 'number' ? app.priceCache : (base.cache ?? base.input * P.cacheRatio)
   };
 }
 
+/**
+ * 单条记录预估花费
+ * rec: { pt 输入(含缓存), ct 输出, ch 缓存命中, cm 缓存未命中 }
+ * 旧记录无 ch/cm 字段时全部按普通输入价计费。
+ */
 export function recordCost(app, rec) {
   const p = resolvePrice(app, rec.vendor, rec.model);
-  return (rec.pt / 1e6) * p.input + (rec.ct / 1e6) * p.output;
+  const ch = rec.ch ?? 0;
+  const cm = rec.cm ?? 0;
+  const plain = Math.max(0, rec.pt - ch - cm); // 未拆分出缓存属性的普通输入
+  return ((ch * p.cache) + ((cm + plain) * p.input) + (rec.ct * p.output)) / 1e6;
 }
 
 /** 桶对齐：返回某时刻所属桶的起点（本地时区） */
@@ -62,10 +71,11 @@ function fmtLabel(t, scaleKey) {
 
 /**
  * 聚合
- * @param records [{t,pt,ct,vendor,model}]
+ * @param records [{t,pt,ct,ch,cm,vendor,model}]
  * @param scaleKey hour|day|week|month|year
  * @param zoom 缩放系数（1=默认窗口）
- * @returns { rows:[{key,label,tokens,cost}], totals:{tokens,cost,count} }
+ * @returns { rows:[{key,label,tokens,inputCacheHit,inputMiss,output,cost}],
+ *            totals:{tokens,cost,count,pt,ct,ch,cm,hitRate} }
  */
 export function aggregate(records, scaleKey, zoom, app) {
   const scale = CONFIG.usageScales.find(s => s.key === scaleKey) ?? CONFIG.usageScales[1];
@@ -81,7 +91,10 @@ export function aggregate(records, scaleKey, zoom, app) {
     cur = bucketStart(cur - 1, scaleKey);
   }
 
-  const buckets = starts.map(t => ({ key: `${scaleKey}-${t}`, label: fmtLabel(t, scaleKey), start: t, tokens: 0, cost: 0 }));
+  const buckets = starts.map(t => ({
+    key: `${scaleKey}-${t}`, label: fmtLabel(t, scaleKey), start: t,
+    tokens: 0, cost: 0, ch: 0, cm: 0, pt: 0, ct: 0
+  }));
   const idxOf = new Map(starts.map((t, i) => [t, i]));
   const winStart = starts[0];
   const winEnd = bucketNext(end, scaleKey);
@@ -92,14 +105,25 @@ export function aggregate(records, scaleKey, zoom, app) {
     const i = idxOf.get(b);
     if (i == null) continue;
     buckets[i].tokens += rec.pt + rec.ct;
+    buckets[i].pt += rec.pt;
+    buckets[i].ct += rec.ct;
+    buckets[i].ch += rec.ch ?? 0;
+    buckets[i].cm += rec.cm ?? 0;
     buckets[i].cost += recordCost(app, rec);
   }
 
   const totals = buckets.reduce((a, b) => ({
     tokens: a.tokens + b.tokens,
-    cost: a.cost + b.cost
-  }), { tokens: 0, cost: 0 });
+    cost: a.cost + b.cost,
+    pt: a.pt + b.pt,
+    ct: a.ct + b.ct,
+    ch: a.ch + b.ch,
+    cm: a.cm + b.cm
+  }), { tokens: 0, cost: 0, pt: 0, ct: 0, ch: 0, cm: 0 });
   totals.count = records.filter(r => r.t >= winStart && r.t < winEnd).length;
+  // 缓存命中率：命中 / 参与缓存统计的输入（无任何缓存字段记录时为 null，不展示）
+  const cacheBase = totals.ch + totals.cm;
+  totals.hitRate = cacheBase > 0 ? totals.ch / cacheBase : null;
 
   return { rows: buckets, totals };
 }

@@ -229,8 +229,10 @@ ipcMain.handle('usage:record', (_e, entry) => {
       kind: String(entry.kind || 'advance'),
       vendor: String(entry.vendor || ''),
       model: String(entry.model || ''),
-      pt: Math.max(0, Math.round(entry.pt || 0)),
-      ct: Math.max(0, Math.round(entry.ct || 0))
+      pt: Math.max(0, Math.round(entry.pt || 0)),   // 输入 token（含缓存命中与未命中）
+      ct: Math.max(0, Math.round(entry.ct || 0)),   // 输出 token
+      ch: Math.max(0, Math.round(entry.ch || 0)),   // 缓存命中输入 token
+      cm: Math.max(0, Math.round(entry.cm || 0))    // 缓存未命中输入 token
     });
     // 上限裁剪，避免无限膨胀
     if (data.records.length > 50000) data.records = data.records.slice(-40000);
@@ -264,13 +266,17 @@ ipcMain.handle('ai:chat', async (_e, payload) => {
       throw new Error(`AI 服务返回 ${resp.status}: ${text.slice(0, 300)}`);
     }
     const data = await resp.json();
+    const u = data?.usage;
     return {
       ok: true,
       content: data?.choices?.[0]?.message?.content ?? '',
-      usage: data?.usage ? {
-        prompt_tokens: data.usage.prompt_tokens ?? 0,
-        completion_tokens: data.usage.completion_tokens ?? 0,
-        total_tokens: data.usage.total_tokens ?? 0
+      usage: u ? {
+        prompt_tokens: u.prompt_tokens ?? 0,
+        completion_tokens: u.completion_tokens ?? 0,
+        total_tokens: u.total_tokens ?? 0,
+        // 缓存命中/未命中：兼容 DeepSeek 直出字段与 OpenAI prompt_tokens_details 结构
+        prompt_cache_hit_tokens: u.prompt_cache_hit_tokens ?? u.prompt_tokens_details?.cached_tokens ?? null,
+        prompt_cache_miss_tokens: u.prompt_cache_miss_tokens ?? null
       } : null
     };
   } catch (err) {

@@ -1,13 +1,14 @@
 // 角色设定界面：新开征程时的创建向导
-// 姓名(可编辑) / 出身(固定选项或自由填写≤100字) / 灵根(1~5) / 天赋(AI生成·0~3) / 被动(1~2) / 主动(与灵根相关·1~2)
+// 姓名(可编辑) / 出身(固定选项或自由填写≤100字) / 灵根(1~5) / 天赋(AI生成·0~3) / 被动(技能库·1~2) / 主动(技能库·灵根相关·1~2)
 import { Component, h, icon } from '../core/component.js';
 import { CONFIG } from '../core/config.js';
 import { FormField, TextInput } from '../ui/controls.js';
+import { describeActive, describePassive } from '../core/skills.js';
 
 const SECTIONS = [
   { kind: 'talent',  title: '天赋',     min: 0, max: 3, tip: '天成之质，可弃权不选' },
-  { kind: 'passive', title: '初始被动', min: 1, max: 2, tip: '常驻生效的心法' },
-  { kind: 'active',  title: '初始主动', min: 1, max: 2, tip: '与所选灵根相应的术法' }
+  { kind: 'passive', title: '初始被动', min: 1, max: 2, tip: '功法库心法，常驻生效' },
+  { kind: 'active',  title: '初始主动', min: 1, max: 2, tip: '功法库中与灵根相应的术法' }
 ];
 
 export class CreationModal extends Component {
@@ -224,6 +225,9 @@ export class CreationModal extends Component {
       h('div', { class: 'cr-cands' },
         list.map(c => {
           const rootDef = c.root ? CONFIG.roots.find(r => r.key === c.root) : null;
+          // 技能层结构化摘要：主动=耗蓝/倍率/治疗/护盾/状态；被动=mods 数值
+          const brief = sec.kind === 'active' ? describeActive(c)
+            : sec.kind === 'passive' && c.mods ? describePassive(c) : null;
           return h('button', {
             class: `cr-cand ${picked.has(c.name) ? 'sel' : ''}`,
             onclick: () => this._togglePick(sec.kind, c.name)
@@ -231,9 +235,10 @@ export class CreationModal extends Component {
             h('div', { class: 'cr-cand-head' },
               h('b', null, c.name),
               rootDef ? h('i', { class: 'cr-cand-root', style: { color: rootDef.color, borderColor: rootDef.color } }, rootDef.label) : null,
-              sec.kind === 'active' ? h('i', { class: 'cr-cand-cost' }, `耗蓝${c.cost ?? 10} · 倍率${c.mult ?? 1.5}`) : null
+              !rootDef && sec.kind !== 'talent' ? h('i', { class: 'cr-cand-root' }, '无') : null
             ),
-            h('span', { class: 'cr-cand-desc' }, c.desc)
+            h('span', { class: 'cr-cand-desc' }, c.desc),
+            brief ? h('span', { class: 'cr-cand-struct' }, brief) : null
           );
         })
       )
