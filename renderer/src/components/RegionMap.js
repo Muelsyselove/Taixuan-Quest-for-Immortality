@@ -1,26 +1,16 @@
 // 地图模式二级地图：宗门/区域内部场景分布，点击进入场景
 import { Component, h, icon } from '../core/component.js';
 import { REGION_MAPS, SCENES, getSectStyleLabel, SECTS } from '../core/mapData.js';
+import { svgEl } from './svgViewport.js';
 
-const NS = 'http://www.w3.org/2000/svg';
 // 场景类型 → 字印
 const TYPE_GLYPH = {
   hall: '殿', workshop: '坊', training: '武', garden: '园',
   cave: '窟', library: '书', market: '市', wild: '野'
 };
 
-function svgEl(tag, attrs = {}) {
-  const el = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
-  return el;
-}
-
+// props: { regionId, onEnterScene(sceneId), onBackWorld() }
 export class RegionMap extends Component {
-  constructor(store, props) {
-    super(store, props);
-    // props: { regionId, onEnterScene(sceneId), onBackWorld() }
-  }
-
   watch() { return ['mapLocation']; }
 
   render() {

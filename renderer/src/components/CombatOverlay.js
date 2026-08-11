@@ -1,5 +1,5 @@
 // 战斗界面：全屏覆盖层，回合制交锋
-import { Component, h, icon } from '../core/component.js';
+import { Component, h } from '../core/component.js';
 import { buffLabel, buffColor, effectText, EFFECTS } from '../core/fx.js';
 import { describeActive } from '../core/skills.js';
 

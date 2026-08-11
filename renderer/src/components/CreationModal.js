@@ -2,7 +2,7 @@
 // 姓名(可编辑) / 出身(固定选项或自由填写≤100字) / 灵根(1~5) / 天赋(AI生成·0~3) / 被动(技能库·1~2) / 主动(技能库·灵根相关·1~2)
 import { Component, h, icon } from '../core/component.js';
 import { CONFIG } from '../core/config.js';
-import { FormField, TextInput } from '../ui/controls.js';
+import { TextInput } from '../ui/controls.js';
 import { describeActive, describePassive } from '../core/skills.js';
 
 const SECTIONS = [

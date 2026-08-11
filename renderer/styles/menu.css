@@ -1,0 +1,129 @@
+/* 主界面 / 角色与存档选择 / 设置视图 */
+
+/* ============================================================
+   v3：主界面 / 角色·存档选择 / 设置视图 / 组件库样式
+   ============================================================ */
+
+/* ---------- 主界面 ---------- */
+.menu-screen { align-items: center; justify-content: center; gap: 40px; overflow-y: auto; padding: 24px; }
+.menu-hero { text-align: center; }
+.menu-seal { color: var(--gold); opacity: .9; animation: seal-breathe 5s ease-in-out infinite; }
+.menu-title {
+  font-family: var(--font-display);
+  font-size: 64px; font-weight: 400; letter-spacing: 20px; margin-top: 10px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 60px rgba(216,178,92,.18);
+}
+.menu-sub { margin-top: 12px; color: var(--text-dim); letter-spacing: 6px; font-size: 14px; }
+.menu-cards { display: grid; grid-template-columns: repeat(3, 230px); gap: 18px; }
+.menu-card {
+  position: relative;
+  height: 210px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-body);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  transition: all .35s cubic-bezier(.22,1,.36,1);
+  animation: panel-in .6s cubic-bezier(.22,1,.36,1) both;
+}
+.menu-card:nth-child(2) { animation-delay: .08s; }
+.menu-card:nth-child(3) { animation-delay: .16s; }
+.menu-card::before {
+  content: '';
+  position: absolute; top: 0; left: 15%; right: 15%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+.menu-card:hover:not(.disabled) {
+  transform: translateY(-5px);
+  border-color: var(--line-strong);
+  background: rgba(216,178,92,.06);
+  box-shadow: 0 20px 50px rgba(0,0,0,.5), 0 0 30px rgba(216,178,92,.08);
+}
+.menu-card.disabled { opacity: .42; cursor: not-allowed; }
+.menu-card-icon { color: var(--gold); }
+.menu-card:hover:not(.disabled) .menu-card-icon { color: var(--gold-hi); transform: scale(1.08); transition: transform .3s; }
+.menu-card-title { font-family: var(--font-display); font-size: 21px; letter-spacing: 7px; color: var(--gold-hi); }
+.menu-card-desc { font-size: 12px; color: var(--text-dim); line-height: 1.9; padding: 0 20px; text-align: center; letter-spacing: 1px; }
+.menu-card-badge {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 10px; letter-spacing: 2px;
+  color: var(--jade); border: 1px solid var(--jade);
+  border-radius: 99px; padding: 2px 9px;
+}
+.menu-foot { color: var(--text-dim); font-size: 11px; letter-spacing: 3px; opacity: .55; }
+
+/* ---------- 角色 / 存档选择 ---------- */
+.pick-screen, .settings-screen { overflow-y: auto; padding: 26px 24px 44px; align-items: center; }
+.pick-wrap { width: 900px; max-width: 95vw; display: flex; flex-direction: column; gap: 18px; }
+.pick-head { display: flex; align-items: center; gap: 14px; }
+.pick-back {
+  flex: none;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--ink-2); border: 1px solid var(--line);
+  color: var(--gold); font-size: 22px; line-height: 1;
+  cursor: pointer; transition: all .25s;
+}
+.pick-back:hover { border-color: var(--line-strong); background: rgba(216,178,92,.1); transform: translateX(-2px); }
+.pick-title { font-family: var(--font-display); font-size: 25px; letter-spacing: 6px; color: var(--gold-hi); }
+.pick-sub { margin-top: 4px; font-size: 12px; color: var(--text-dim); letter-spacing: 2px; }
+.pick-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.pick-card {
+  position: relative;
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: all .28s cubic-bezier(.22,1,.36,1);
+  animation: opt-in .4s both;
+}
+.pick-card:hover { border-color: var(--line-strong); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,.4); }
+.pick-card.dashed {
+  border-style: dashed; border-color: var(--line-strong);
+  align-items: center; justify-content: center; text-align: center;
+  min-height: 118px; gap: 8px;
+  color: var(--gold);
+  background: rgba(216,178,92,.04);
+}
+.pick-card.dashed:hover { background: rgba(216,178,92,.09); }
+.pick-icon { color: var(--gold); }
+.pick-card .pick-title { font-family: var(--font-display); font-size: 17px; letter-spacing: 3px; color: var(--gold-hi); }
+.pick-line { font-size: 11.5px; color: var(--text-dim); line-height: 1.7; letter-spacing: 1px; }
+.pick-badge {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: 10px; letter-spacing: 2px;
+  border: 1px solid var(--jade); color: var(--jade);
+  border-radius: 99px; padding: 1px 9px;
+}
+.pick-del {
+  position: absolute; top: 8px; right: 8px;
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--line); background: none;
+  color: var(--text-dim); font-size: 13px;
+  cursor: pointer; transition: all .2s;
+}
+.pick-del:hover { color: var(--danger); border-color: var(--danger); }
+.pick-del.armed { color: #fff; background: var(--danger); border-color: var(--danger); font-size: 11px; }
+
+/* ---------- 设置视图 ---------- */
+.settings-wrap { width: 580px; max-width: 94vw; display: flex; flex-direction: column; gap: 14px; }
+.settings-card {
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 20px 18px;
+  display: flex; flex-direction: column; gap: 13px;
+  backdrop-filter: blur(14px);
+  animation: panel-in .5s both;
+}
+.settings-card h3 { font-family: var(--font-display); font-weight: 400; color: var(--gold); font-size: 15px; letter-spacing: 5px; }
+.settings-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.settings-row .btn { display: inline-flex; align-items: center; gap: 6px; letter-spacing: 2px; }

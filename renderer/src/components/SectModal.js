@@ -1,5 +1,5 @@
 // 宗门大殿模态：宗门风貌 / 拜入宗门 / 宗门任务（地图模式）
-import { h, icon } from '../core/component.js';
+import { h } from '../core/component.js';
 import { Modal } from '../ui/Modal.js';
 import { CONFIG } from '../core/config.js';
 import { SECTS, getSectStyleLabel, canJoinSect } from '../core/mapData.js';
