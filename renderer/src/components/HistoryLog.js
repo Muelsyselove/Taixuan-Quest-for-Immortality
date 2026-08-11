@@ -24,9 +24,10 @@ export class HistoryLog extends Component {
       return;
     }
     for (const item of [...history].reverse().slice(0, 60)) {
+      // 地图模式以年/月计（pushHistory 已写入 when），对话模式以日计
       this.listEl.appendChild(
         h('div', { class: `history-item kind-${item.kind}` },
-          h('span', { class: 'history-day' }, `第${item.day}日`),
+          h('span', { class: 'history-day' }, item.when ?? `第${item.day}日`),
           h('span', { class: 'history-text' }, item.text)
         )
       );

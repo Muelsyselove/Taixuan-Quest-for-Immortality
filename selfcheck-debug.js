@@ -1,17 +1,19 @@
 // 自检脚本 v3：驱动 Electron 全功能回归（主界面 → 角色 → 存档 → 游戏 → 统计）
 const { _electron: electron } = require('playwright-core');
 
+let errors = [];
 (async () => {
   const electronPath = require('path').join(__dirname, 'node_modules', 'electron', 'dist', 'electron');
   const app = await electron.launch({ executablePath: electronPath, args: ['.', '--no-sandbox', '--disable-gpu'], cwd: __dirname });
   const win = await app.firstWindow();
 
-  const errors = [];
+  errors = [];
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   win.on('pageerror', (e) => errors.push(String(e.stack || e)));
 
   const out = {};
 
+  console.error('STEP s0', new Date().toISOString());
   // 0. 启动 → 主界面；强制本地兜底模式，保证全程确定性
   await win.waitForFunction(() => !!window.__game, null, { timeout: 20000 });
   await win.evaluate(() => {
@@ -26,6 +28,7 @@ const { _electron: electron } = require('playwright-core');
     disabled: await win.locator('.menu-card.disabled').count()
   };
 
+  console.error('STEP s1', new Date().toISOString());
   // 1. 设置视图：画质 / 声音控件 + 实时生效
   await win.locator('.menu-card').nth(2).click();
   await win.waitForSelector('.settings-screen');
@@ -40,6 +43,7 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.pick-back').click();
   await win.waitForSelector('.menu-screen');
 
+  console.error('STEP s2', new Date().toISOString());
   // 2. 对话模式 → 角色选择 → 新建角色（姓名 + 出身：预设被自由填写覆盖）
   await win.locator('.menu-card').nth(0).click();
   await win.waitForSelector('.pick-screen');
@@ -61,6 +65,7 @@ const { _electron: electron } = require('playwright-core');
   out.creation.confirmEnabled = await win.locator('.cr-confirm:not([disabled])').count();
   await win.locator('.cr-confirm').click();
 
+  console.error('STEP s3', new Date().toISOString());
   // 3. 存档选择 → 开启新程 → 进入游戏
   await win.waitForSelector('.pick-screen');
   out.saveSelect = { freshCard: await win.locator('.pick-card.dashed').count() };
@@ -77,6 +82,7 @@ const { _electron: electron } = require('playwright-core');
     entries: await win.locator('.char-entry').count()
   };
 
+  console.error('STEP s4', new Date().toISOString());
   // 4. 背包：筛选 + 使用物品
   await win.locator('.char-entry').nth(1).click();
   await win.waitForTimeout(400);
@@ -91,6 +97,7 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.modal-close').click();
   await win.waitForTimeout(200);
 
+  console.error('STEP s5', new Date().toISOString());
   // 5. 功法二级页（技能层结构化字段展示）
   await win.locator('.char-entry').nth(0).click();
   await win.waitForTimeout(300);
@@ -101,6 +108,7 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.modal-close').click();
   await win.waitForTimeout(200);
 
+  console.error('STEP s6', new Date().toISOString());
   // 6. 人物关系：注册 → 面板入口 → 卡片呈现
   await win.evaluate(() => {
     window.__game.store.upsertRelation({ name: '自检散人', identity: '游方术士', relation: '一面之缘', affinity: 25 });
@@ -117,6 +125,7 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.relations-modal .modal-close').click();
   await win.waitForTimeout(200);
 
+  console.error('STEP s7', new Date().toISOString());
   // 7. 地图缩放（上限/下限/复位）
   const zoomIn = win.locator('.map-zoom-btn').nth(1);
   for (let i = 0; i < 12; i++) await zoomIn.click();
@@ -126,6 +135,7 @@ const { _electron: electron } = require('playwright-core');
   out.map.minZoom = await win.locator('.map-zoom-label').innerText();
   await win.locator('.map-zoom-btn.reset').click();
 
+  console.error('STEP s8', new Date().toISOString());
   // 8. 战斗：手动触发并完整打一场（本地策略代理敌方）
   await win.evaluate(() => {
     window.__game.store.set({ combat: null });
@@ -219,6 +229,7 @@ const { _electron: electron } = require('playwright-core');
     registered: await win.evaluate(() => window.__game.store.state.customSkills.active.some(s => s.name === '天机一剑'))
   };
 
+  console.error('STEP s9', new Date().toISOString());
   // 9. 存档 / 读档（按角色独立 + 分域文件）
   await win.evaluate(() => window.__game.saves.save('selfcheck'));
   const dayNow = await win.evaluate(() => window.__game.store.state.day);
@@ -234,12 +245,14 @@ const { _electron: electron } = require('playwright-core');
   };
   await win.evaluate(() => window.__game.saves.remove('selfcheck'));
 
+  console.error('STEP s10', new Date().toISOString());
   // 10. 剧情推进 → 自动存档
   await win.locator('.option-card').first().click();
   await win.waitForFunction(() => window.__game.store.state.busy === false, null, { timeout: 15000 }).catch(() => {});
   await win.waitForTimeout(500);
   out.autosave = (await win.evaluate(() => window.__game.saves.list())).some(s => s.auto);
 
+  console.error('STEP s11', new Date().toISOString());
   // 11. 物品 grant 注册：技能 / 天赋 / 常驻增益
   out.grants = await win.evaluate(() => {
     const g = window.__game;
@@ -257,6 +270,7 @@ const { _electron: electron } = require('playwright-core');
     };
   });
 
+  console.error('STEP s12', new Date().toISOString());
   // 12. 花费统计：注入用量记录（含缓存命中/未命中）→ 堆叠图渲染 + 命中率 + 缩放跨档钳制
   await win.evaluate(async () => {
     const now = Date.now();
@@ -290,6 +304,7 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.usage-modal .modal-close').click();
   await win.waitForTimeout(200);
 
+  console.error('STEP s13', new Date().toISOString());
   // 13. 退出主界面 → 重进：角色列表 → 存档列表（含自动存档）→ 读档续玩
   await win.locator('.gt-btn[data-t="home"]').click();
   await win.waitForSelector('.menu-screen');
@@ -527,4 +542,4 @@ const { _electron: electron } = require('playwright-core');
   await win.screenshot({ path: 'selfcheck.png' });
   await app.close();
   if (errors.length) process.exit(1);
-})().catch((e) => { console.error('SELFCHECK FAILED:', e); process.exit(1); });
+})().catch((e) => { console.error('SELFCHECK FAILED:', e.message); try { console.error('PAGE ERRORS:', JSON.stringify(errors, null, 2)); } catch (e2) { console.error('dump fail', e2); } process.exit(1); });

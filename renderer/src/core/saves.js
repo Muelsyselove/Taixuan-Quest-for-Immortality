@@ -24,7 +24,8 @@ export class SaveManager {
         savedAt: Date.now(),
         day: s.day,
         realm: s.realm,
-        name: s.name
+        name: s.name,
+        mode: s.mode // 存档所属模式（dialogue|map），读档分发依据
       }
     };
     return window.taixuan.saves.write(this.charId, slot, payload);
