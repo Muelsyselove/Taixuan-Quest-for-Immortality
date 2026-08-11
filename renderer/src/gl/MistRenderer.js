@@ -165,7 +165,18 @@ export class MistRenderer {
   /** 剧情推进时调用：灵雾涌动一拍 */
   pulse() { this.intensity = 1; }
 
+  /** 停止渲染循环（自检/后台隐藏时释放主线程）；start 可恢复 */
+  stop() { this._stopped = true; }
+
+  /** 恢复渲染循环 */
+  start() {
+    if (!this._stopped) return;
+    this._stopped = false;
+    requestAnimationFrame(this._loop);
+  }
+
   _loop(t) {
+    if (this._stopped) return;
     const gl = this.gl;
     if (gl) {
       // 缓动趋近

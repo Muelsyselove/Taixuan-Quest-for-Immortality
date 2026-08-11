@@ -42,18 +42,22 @@ export class CombatEngine {
     };
 
     const playerFirst = signal.playerFirst !== false; // 默认我方先手
+    const spar = !!signal.spar; // 切磋：点到为止，不致死
     this.store.set({
       combat: {
         enemy,
         playerFirst,
+        spar,
         round: 1,
         phase: playerFirst ? 'player' : 'enemy',
         buffs: { player: [], enemy: [] }, // buff 层实例：[{name,effects[],turns,stackable,maxStacks,stacks}]
-        log: [{ side: 'sys', text: `遭遇【${enemy.name}】——${enemy.desc}${playerFirst ? '你抢得先机！' : '对方来势汹汹，抢先出手！'}` }],
+        log: [{ side: 'sys', text: spar
+          ? `【${enemy.name}】邀你切磋较艺——点到为止，${playerFirst ? '你拱手先出一招！' : '对方抢先进招！'}`
+          : `遭遇【${enemy.name}】——${enemy.desc}${playerFirst ? '你抢得先机！' : '对方来势汹汹，抢先出手！'}` }],
         result: null
       }
     });
-    this.store.pushHistory(`与【${enemy.name}】狭路相逢，战！`, 'combat');
+    this.store.pushHistory(spar ? `与【${enemy.name}】切磋较艺` : `与【${enemy.name}】狭路相逢，战！`, 'combat');
 
     if (!playerFirst) this._enemyTurn();
   }
@@ -65,14 +69,20 @@ export class CombatEngine {
 
     if (result === 'win') {
       const gain = Math.round(c.enemy.maxHp * 0.35 + c.enemy.atk * 2);
-      this.store.pushHistory(`力挫【${c.enemy.name}】，修为 +${gain}`, 'combat');
+      this.store.pushHistory(c.spar ? `切磋胜出【${c.enemy.name}】一筹，修为 +${gain}` : `力挫【${c.enemy.name}】，修为 +${gain}`, 'combat');
       this.store.applyEffects({ cultivation: gain });
-      // 战利品：本地掉落表掷骰
-      const loot = this._rollLoot();
-      if (loot) this.store.addItem(loot);
+      // 战利品：本地掉落表掷骰（切磋无战利品）
+      if (!c.spar) {
+        const loot = this._rollLoot();
+        if (loot) this.store.addItem(loot);
+      }
     } else if (result === 'lose') {
-      this.store.pushHistory(`不敌【${c.enemy.name}】，重伤遁走`, 'death');
-      this.store.applyEffects({ hp: -s.maxHp }); // 触发轮回判定
+      if (c.spar) {
+        this.store.pushHistory(`切磋不敌【${c.enemy.name}】，拱手认输——点到为止，无伤大雅`, 'combat');
+      } else {
+        this.store.pushHistory(`不敌【${c.enemy.name}】，重伤遁走`, 'death');
+        this.store.applyEffects({ hp: -s.maxHp }); // 触发轮回判定
+      }
     } else if (result === 'flee') {
       this.store.pushHistory(`自【${c.enemy.name}】手下脱身而去`, 'combat');
     }
@@ -438,13 +448,14 @@ export class CombatEngine {
     const c = this.c;
     if (!c || c.phase === 'over') return true;
     if (c.enemy.hp <= 0) { this._end('win'); return true; }
-    if (this.store.state.hp <= 0) { this._end('lose'); return true; }
+    // 切磋：血线触 1 即判负（applyEffects 已将 hp 钳至 1，不致陨落）
+    if (this.store.state.hp <= (c.spar ? 1 : 0)) { this._end('lose'); return true; }
     return false;
   }
 
   /* ================= 我方行动 ================= */
 
-  /** @param action {type:'attack'|'skill'|'item'|'guard'|'flee', skill?, itemId?} */
+  /** @param action {type:'attack'|'skill'|'item'|'guard'|'flee'|'rest', skill?, itemId?} */
   async playerAction(action) {
     const c = this.c;
     if (!c || c.phase !== 'player') return;
@@ -478,6 +489,14 @@ export class CombatEngine {
         case 'guard': {
           this._applySideBuff('player', mkBuff('格挡', [{ key: 'guard' }], { turns: 99 }));
           this._log('player', '你沉腰立马，凝神格挡');
+          break;
+        }
+        case 'rest': {
+          // 静息：恢复50%法力
+          const maxMp = this.store.effStat('maxMp');
+          const recover = Math.round(maxMp * 0.5);
+          this.store.applyEffects({ mp: recover });
+          this._log('player', `你静心调息，恢复 ${recover} 点法力（50%）`);
           break;
         }
         case 'flee': {
@@ -526,6 +545,11 @@ export class CombatEngine {
       case 'guard': {
         this._applySideBuff('enemy', mkBuff('格挡', [{ key: 'guard' }], { turns: 99 }));
         this._log('enemy', decision.narration || `【${e.name}】收势凝神，摆出守御之姿`);
+        break;
+      }
+      case 'rest': {
+        // 敌方静息：恢复50%法力（敌方无蓝条，仅叙事）
+        this._log('enemy', decision.narration || `【${e.name}】静心调息，气息渐稳`);
         break;
       }
       case 'none':

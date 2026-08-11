@@ -72,7 +72,9 @@ export class CombatOverlay extends Component {
         over
           ? h('div', { class: 'combat-actions' },
               h('div', { class: `combat-result res-${c.result}` },
-                { win: '胜 · 敌已伏诛', lose: '败 · 重伤遁走', flee: '走 · 脱身而去' }[c.result]
+                c.spar
+                  ? { win: '胜 · 切磋略胜一筹', lose: '负 · 点到为止，拱手认输', flee: '走 · 切磋中止' }[c.result]
+                  : { win: '胜 · 敌已伏诛', lose: '败 · 重伤遁走', flee: '走 · 脱身而去' }[c.result]
               ),
               h('button', { class: 'btn gold', onclick: () => this.props.combat.dismiss() }, '收起战局')
             )
@@ -149,6 +151,7 @@ export class CombatOverlay extends Component {
       h('button', { class: 'combat-btn', disabled: disabled ? 'disabled' : null, onclick: () => { this.mode = 'skill'; this._render(); } }, '技能'),
       h('button', { class: 'combat-btn', disabled: disabled ? 'disabled' : null, onclick: () => { this.mode = 'item'; this._render(); } }, '物品'),
       h('button', { class: 'combat-btn', disabled: disabled ? 'disabled' : null, onclick: () => act({ type: 'guard' }) }, '防御'),
+      h('button', { class: 'combat-btn rest', disabled: disabled ? 'disabled' : null, onclick: () => act({ type: 'rest' }) }, '静息'),
       h('button', { class: 'combat-btn flee', disabled: disabled ? 'disabled' : null, onclick: () => act({ type: 'flee' }) }, '遁走')
     );
   }

@@ -1,5 +1,6 @@
 // 渲染进程入口：应用级单例 + 屏幕流转
-// 流程：主界面 → （对话模式）角色选择 → 存档选择 → 游戏界面；设置随时可入
+// 流程：主界面 → （对话/地图模式）角色选择 → 存档选择 → 对应模式游戏界面；设置随时可入
+// 读档分发：存档内含 mode 域，读取后按存档模式进入对应界面（跨模式读档亦可）
 import { GameStore } from './core/store.js';
 import { NarrativeEngine } from './core/ai.js';
 import { CombatEngine } from './core/combat.js';
@@ -12,6 +13,7 @@ import { CharacterSelect } from './screens/CharacterSelect.js';
 import { SaveSelect } from './screens/SaveSelect.js';
 import { SettingsView } from './screens/SettingsView.js';
 import { GameScreen } from './screens/GameScreen.js';
+import { MapScreen } from './screens/MapScreen.js';
 import { CONFIG } from './core/config.js';
 
 /* ---------- 应用级单例 ---------- */
@@ -48,7 +50,8 @@ function showMainMenu() {
   screens.show('menu', new MainMenu(store, {
     audio,
     onMode: (key) => {
-      if (key === 'dialogue') showCharSelect();
+      if (key === 'dialogue') showCharSelect('dialogue');
+      else if (key === 'map') showCharSelect('map');
       else if (key === 'settings') showSettings();
     }
   }));
@@ -58,40 +61,48 @@ function showSettings() {
   screens.show('settings', new SettingsView(store, { engine, audio, onBack: showMainMenu }));
 }
 
-function showCharSelect() {
+function showCharSelect(mode = 'dialogue') {
   screens.show('chars', new CharacterSelect(store, {
     engine, audio,
     onBack: showMainMenu,
-    onPick: (ch) => showSaveSelect(ch)
+    onPick: (ch) => showSaveSelect(ch, mode)
   }));
 }
 
-function showSaveSelect(ch) {
+function showSaveSelect(ch, mode = 'dialogue') {
   screens.show('saves', new SaveSelect(store, {
     char: ch, audio,
-    onBack: showCharSelect,
-    onEnter: (slot) => enterGame(ch, slot)
+    onBack: () => showCharSelect(mode),
+    onEnter: (slot) => enterGame(ch, slot, mode)
   }));
 }
 
-/** 进入游戏：绑定角色存档空间 → 读档/新开局 → 挂载游戏界面 → 推进剧情 */
-async function enterGame(char, slot) {
+/**
+ * 进入游戏：绑定角色存档空间 → 读档/新开局 → 按模式挂载游戏界面
+ * 模式判定：读档以存档内 mode 域为准（跨模式入口亦可正确分发）；新开局以入口模式为准
+ */
+async function enterGame(char, slot, mode = 'dialogue') {
   saves.bind(char.id);
   if (slot) {
     await saves.load(slot);
   } else {
     const rec = await window.taixuan.chars.read(char.id).catch(() => null);
     store.reset(rec?.setup || {});
+    store.set({ mode }); // 新开局按入口模式
   }
-  screens.show('game', new GameScreen(store, {
-    engine, combat, saves, mist, audio, char,
-    onExit: async () => {
-      await saves.autoSave().catch(() => {}); // 退出时自动存档，便于续玩
-      showMainMenu();
-    }
-  }));
-  await engine.advance(null, { opening: true });
-  if (!slot) saves.autoSave(); // 新开局落定后立即落一档
+  const effective = store.state.mode === 'map' ? 'map' : 'dialogue';
+  const onExit = async () => {
+    await saves.autoSave().catch(() => {}); // 退出时自动存档，便于续玩
+    showMainMenu();
+  };
+  if (effective === 'map') {
+    screens.show('map', new MapScreen(store, { engine, combat, saves, mist, audio, char, onExit }));
+    if (!slot) saves.autoSave(); // 新开局落定后立即落一档
+  } else {
+    screens.show('game', new GameScreen(store, { engine, combat, saves, mist, audio, char, onExit }));
+    await engine.advance(null, { opening: true });
+    if (!slot) saves.autoSave();
+  }
 }
 
 /* ---------- 窗口控制 ---------- */

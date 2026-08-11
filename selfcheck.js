@@ -19,6 +19,7 @@ const { _electron: electron } = require('playwright-core');
     g.engine.settings.apiKey = '';       // 仅改内存，不落盘
     g.engine._syncReady();
     g.engine.onCombatSignal = null;      // 剧情推进不再随机触发战斗
+    g.mist.stop?.();                     // 软件渲染环境下停掉灵雾背景，避免拖垮主线程
   });
   await win.waitForSelector('.menu-card', { timeout: 10000 });
   out.menu = {
@@ -306,6 +307,221 @@ const { _electron: electron } = require('playwright-core');
   await win.waitForFunction(() => window.__game.store.state.busy === false, null, { timeout: 15000 }).catch(() => {});
   out.reenter.name = await win.evaluate(() => window.__game.store.state.name);
   out.reenter.relations = await win.evaluate(() => window.__game.store.state.relations.length);
+
+  // ==================== 14. 地图模式回归 ====================
+  // 主菜单 → 地图模式 → 沿用角色「自检道人」→ 开启新程 → 地图界面
+  await win.locator('.gt-btn[data-t="home"]').click();
+  await win.waitForSelector('.menu-screen');
+  await win.locator('.menu-card').nth(1).click();
+  await win.waitForSelector('.pick-screen');
+  await win.locator('.pick-card:not(.dashed)').first().click();
+  await win.waitForTimeout(400);
+  await win.locator('.pick-card.dashed').first().click();
+  await win.waitForSelector('.map-screen');
+  await win.waitForTimeout(600);
+
+  out.mapMode = {};
+  out.mapMode.entry = await win.evaluate(() => {
+    const s = window.__game.store.state;
+    return { mode: s.mode, time: `第${s.mapTime.year}年${s.mapTime.month}月`, silver: s.wealth.silver, spirit: s.wealth.spirit };
+  });
+  out.mapMode.worldView = await win.locator('.map-main-stage[data-level="world"] .world-map-panel').count();
+  out.mapMode.miniHidden = (await win.locator('.mini-world').count()) === 0;
+  out.mapMode.statusPanel = await win.locator('.map-status-panel').count();
+  out.mapMode.worldNodes = await win.locator('.world-node').count();
+
+  // 14.1 三级导航：大世界 → 青云门区域（原地直入不耗时）→ 场景；侧栏迷你大世界展开
+  await win.locator('.world-node[data-id="qingyun"]').click();
+  await win.waitForSelector('.region-map-panel', { timeout: 6000 });
+  out.mapMode.regionView = await win.locator('.map-main-stage[data-level="region"] .region-map-panel').count();
+  out.mapMode.miniShown = await win.locator('.mini-world').count();
+  out.mapMode.regionScenes = await win.locator('.region-node').count();
+  out.mapMode.enterFree = await win.evaluate(() => {
+    const t = window.__game.store.state.mapTime; return t.year === 1 && t.month === 1;
+  });
+  await win.locator('.region-node[data-id="qy_dadian"]').click();
+  await win.waitForSelector('.scene-panel', { timeout: 6000 });
+  out.mapMode.sceneView = await win.locator('.map-main-stage[data-level="scene"] .scene-panel').count();
+  out.mapMode.sceneNpcs = await win.locator('.npc-chip').count();
+  out.mapMode.sceneFacilities = await win.locator('.fac-btn').count();
+
+  // 14.2 NPC 对话：AI 寒暄（本地兜底）+ 关系注册 + 自由对话 + 固定话题
+  await win.locator('.npc-chip').first().click();
+  await win.waitForSelector('.npc-dialog');
+  await win.waitForFunction(() => {
+    const el = document.querySelector('.npc-dialog .npc-line span');
+    return el && !el.classList.contains('npc-wait') && el.textContent.length > 1;
+  }, null, { timeout: 8000 });
+  out.mapMode.npcGreet = (await win.locator('.npc-dialog .npc-line').first().innerText()).slice(0, 40);
+  out.mapMode.npcRelation = await win.evaluate(() => window.__game.store.state.relations.some(r => r.name === '清虚子'));
+  out.mapMode.npcTopics = await win.locator('.npc-topic').count();
+  await win.locator('.npc-input').fill('道友可曾见过会飞的剑？');
+  await win.locator('.npc-send').click();
+  await win.waitForFunction(() => {
+    const lines = document.querySelectorAll('.npc-dialog .npc-line');
+    if (lines.length < 3) return false;
+    return !lines[lines.length - 1].querySelector('.npc-wait');
+  }, null, { timeout: 8000 });
+  out.mapMode.npcFreeChat = (await win.locator('.npc-dialog .npc-line').last().innerText()).slice(0, 40);
+
+  // 14.3 固定话题 → 宗门大殿：拜入青云门（无门槛）→ 领宗门任务（+2月 +赏银 +好感）
+  await win.locator('.npc-topic:has-text("拜入宗门")').click();
+  await win.waitForSelector('.sect-modal');
+  const silverBefore = await win.evaluate(() => window.__game.store.state.wealth.silver);
+  await win.locator('.sect-acts .btn.gold:has-text("拜入宗门")').click();
+  await win.waitForTimeout(300);
+  out.mapMode.sectJoined = await win.evaluate(() => window.__game.store.state.sect);
+  await win.locator('.sect-acts .btn.gold:has-text("领宗门任务")').click();
+  await win.waitForTimeout(300);
+  out.mapMode.quest = await win.evaluate((sb) => {
+    const s = window.__game.store.state;
+    return { silverUp: s.wealth.silver > sb, affinity: s.sectAffinity.qingyun ?? 0, time: `${s.mapTime.year}年${s.mapTime.month}月` };
+  }, silverBefore);
+  await win.locator('.sect-modal .modal-close').click();
+  await win.waitForTimeout(200);
+  await win.locator('.npc-dialog .modal-close').click();
+  await win.waitForTimeout(200);
+
+  // 14.4 闭关修炼：闭关室 → 入定闭关（默认3月，修为增、时光+3月）
+  await win.locator('.fac-btn.leave').click();
+  await win.waitForSelector('.region-map-panel', { timeout: 6000 });
+  await win.locator('.region-node[data-id="qy_biguan"]').click();
+  await win.waitForSelector('.scene-panel', { timeout: 6000 });
+  const cultBefore = await win.evaluate(() => window.__game.store.state.cultivation);
+  await win.locator('.fac-btn:has-text("闭关室")').click();
+  await win.waitForSelector('.cult-modal');
+  await win.locator('.cult-modal .bk-go').click();
+  await win.waitForTimeout(300);
+  out.mapMode.cultivate = await win.evaluate((b) => {
+    const s = window.__game.store.state;
+    return { gain: s.cultivation - b, time: `${s.mapTime.year}年${s.mapTime.month}月` };
+  }, cultBefore);
+  await win.locator('.cult-modal .modal-close').click();
+  await win.waitForTimeout(200);
+
+  // 14.5 炼丹：注入草药 → 炼丹房 → 必成注入炼制（丹药入包 + 经验 + 耗时1月）
+  await win.evaluate(() => window.__game.store.set({ herbs: { jinling: 2, xinyi: 2 } }));
+  await win.locator('.fac-btn.leave').click();
+  await win.waitForSelector('.region-map-panel', { timeout: 6000 });
+  await win.locator('.region-node[data-id="qy_liandan"]').click();
+  await win.waitForSelector('.scene-panel', { timeout: 6000 });
+  await win.locator('.fac-btn:has-text("炼丹房")').click();
+  await win.waitForSelector('.alchemy-modal');
+  out.mapMode.alchemyHerbChips = await win.locator('.alch-herb-chip').count();
+  await win.evaluate(() => { window.__rand = Math.random; Math.random = () => 0.01; });
+  const itemsBefore = await win.evaluate(() => window.__game.store.state.items.length);
+  await win.locator('.alch-item:not(.lack) .btn.gold.sm').first().click();
+  await win.waitForTimeout(300);
+  out.mapMode.alchemy = await win.evaluate((ib) => {
+    const s = window.__game.store.state;
+    return {
+      pillGained: s.items.length === ib + 1,
+      expGained: s.alchemyExp > 0,
+      herbConsumed: (s.herbs.jinling ?? 0) === 1,
+      time: `${s.mapTime.year}年${s.mapTime.month}月`
+    };
+  }, itemsBefore);
+  await win.evaluate(() => { Math.random = window.__rand; });
+  await win.locator('.alchemy-modal .modal-close').click();
+  await win.waitForTimeout(200);
+
+  // 14.6 财富系统：汇兑双向 + 购物/售出（确定性，直驱 store）
+  out.mapMode.wealth = await win.evaluate(() => {
+    const st = window.__game.store;
+    st.gainWealth({ silver: 2000 });
+    const s0 = st.state.wealth.silver;
+    const ex1 = st.exchangeSilverToSpirit();
+    const afterEx = { silver: st.state.wealth.silver, spirit: st.state.wealth.spirit };
+    const ex2 = st.exchangeSpiritToSilver();
+    const buy = st.buyMapItem('huixue_dan');
+    const it = st.state.items.find(i => i.name === '回血丹');
+    const sell = it ? st.sellMapItem(it.id) : { ok: false };
+    return {
+      ex1: ex1.ok, afterEx, silverDropOnEx: s0 - afterEx.silver === 1000,
+      ex2: ex2.ok, buyOk: buy.ok, sellOk: sell.ok
+    };
+  });
+
+  // 14.7 突破系统：修为圆满 → 按钮就绪；必成/必败注入（失败回退一个小境界）
+  await win.evaluate(() => { const st = window.__game.store; st.set({ cultivation: st.state.cultivationCap }); });
+  await win.waitForTimeout(300);
+  out.mapMode.breakReady = await win.locator('.ms-break-btn.ready').count();
+  out.mapMode.breakthrough = await win.evaluate(() => {
+    const st = window.__game.store;
+    const r0 = st.state.realmIndex;
+    const rand = Math.random;
+    Math.random = () => 0.01; // 必成
+    const w1 = st.mapBreakthrough();
+    const r1 = st.state.realmIndex;
+    st.set({ cultivation: st.state.cultivationCap });
+    Math.random = () => 0.99; // 必败
+    const w2 = st.mapBreakthrough();
+    const r2 = st.state.realmIndex;
+    Math.random = rand;
+    return { r0, winUp: w1.success === true && r1 === r0 + 1, failRollback: w2.success === false && r2 === r1 - 1 };
+  });
+
+  // 14.8 战斗「静息」（恢复50%法力）+ 切磋血线钳制（点到为止不致死）
+  out.mapMode.rest = await win.evaluate(async () => {
+    const g = window.__game; const st = g.store;
+    const stash = { p: st.state.passiveSkills, t: st.state.talents, b: st.state.buffs };
+    st.set({ passiveSkills: [], talents: [], buffs: [], mp: 10 }); // 屏蔽被动回蓝干扰
+    const expect = 10 + Math.round(st.effStat('maxMp') * 0.5);
+    g.combat.start({ enemy: { name: '自检木人', desc: '', hp: 500, atk: 1, pdef: 0, mdef: 0, skills: [{ name: '轻拍', mult: 1 }] }, playerFirst: true, spar: true });
+    await g.combat.playerAction({ type: 'rest' });
+    const r = { recovered: st.state.mp === expect, sparFlag: st.state.combat?.spar === true };
+    st.set({ passiveSkills: stash.p, talents: stash.t, buffs: stash.b, combat: null, mp: st.effStat('maxMp') });
+    return r;
+  });
+  out.mapMode.sparClamp = await win.evaluate(() => {
+    const g = window.__game; const st = g.store;
+    const stash = { p: st.state.passiveSkills, t: st.state.talents, b: st.state.buffs };
+    st.set({ passiveSkills: [], talents: [], buffs: [] });
+    g.combat.start({ enemy: { name: '自检重锤', desc: '', hp: 500, atk: 9999, pdef: 0, mdef: 0, skills: [{ name: '重击', mult: 5 }] }, playerFirst: true, spar: true });
+    st.applyEffects({ hp: -99999 }); // 切磋中致命伤害应钳至 1
+    const r = { hp: st.state.hp, alive: !st.state.dead };
+    st.set({ passiveSkills: stash.p, talents: stash.t, buffs: stash.b, combat: null, hp: st.effStat('maxHp') });
+    return r;
+  });
+
+  // 14.9 地图模式存档往返：模式/宗门/位置/时间/草药/财富全量恢复
+  out.mapMode.saveRound = await win.evaluate(async () => {
+    const g = window.__game; const st = g.store;
+    const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const snap = {
+      mode: st.state.mode, sect: st.state.sect,
+      loc: { ...st.state.mapLocation }, time: { ...st.state.mapTime },
+      herbs: { ...st.state.herbs }, silver: st.state.wealth.silver
+    };
+    await g.saves.save('mapcheck');
+    st.set({ mapLocation: { world: 'fentian', region: 'fentian', scene: null }, herbs: {}, wealth: { silver: 1, spirit: 0 } });
+    const ok = await g.saves.load('mapcheck');
+    const back = {
+      mode: st.state.mode, sect: st.state.sect,
+      loc: { ...st.state.mapLocation }, time: { ...st.state.mapTime },
+      herbs: { ...st.state.herbs }, silver: st.state.wealth.silver
+    };
+    await g.saves.remove('mapcheck');
+    return {
+      ok, modeKept: back.mode === 'map', sectKept: back.sect === snap.sect,
+      locKept: eq(back.loc, snap.loc), timeKept: eq(back.time, snap.time),
+      herbsKept: eq(back.herbs, snap.herbs), silverKept: back.silver === snap.silver
+    };
+  });
+  await win.waitForTimeout(500);
+
+  // 14.10 寿元：推进150年（练气上限100年）→ 陨落遮罩；元婴后寿元无限（逻辑断言）
+  out.mapMode.lifespan = await win.evaluate(async () => {
+    const st = window.__game.store;
+    const r = st.advanceMapTime(12 * 150);
+    const dead = !!st.state.dead;
+    const { isLifespanOver } = await import('./src/core/time.js');
+    return { died: r.died, dead, immortal: isLifespanOver({ year: 99999, month: 1 }, 3) === false };
+  });
+  await win.waitForSelector('.dead-mask', { timeout: 3000 });
+  out.mapMode.deadMask = await win.locator('.dead-mask').count();
+  await win.evaluate(() => window.__game.store.set({ dead: null })); // 清场便于截图
+  await win.waitForTimeout(300);
 
   out.errors = errors;
   console.log(JSON.stringify(out, null, 2));
