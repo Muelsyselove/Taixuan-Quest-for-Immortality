@@ -149,6 +149,7 @@ export class CombatOverlay extends Component {
       h('button', { class: 'combat-btn', disabled: disabled ? 'disabled' : null, onclick: () => { this.mode = 'skill'; this._render(); } }, '技能'),
       h('button', { class: 'combat-btn', disabled: disabled ? 'disabled' : null, onclick: () => { this.mode = 'item'; this._render(); } }, '物品'),
       h('button', { class: 'combat-btn', disabled: disabled ? 'disabled' : null, onclick: () => act({ type: 'guard' }) }, '防御'),
+      h('button', { class: 'combat-btn rest', disabled: disabled ? 'disabled' : null, onclick: () => act({ type: 'rest' }) }, '静息'),
       h('button', { class: 'combat-btn flee', disabled: disabled ? 'disabled' : null, onclick: () => act({ type: 'flee' }) }, '遁走')
     );
   }

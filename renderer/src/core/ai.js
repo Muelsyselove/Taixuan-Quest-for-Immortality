@@ -4,6 +4,7 @@
 import { CONFIG } from './config.js';
 import { presentDomain, domainCatalog, isDomainKey } from './data.js';
 import { presentLibrary, libraryFor } from './skills.js';
+import { FACILITY_TYPES, SECTS } from './mapData.js';
 
 const MAX_DATA_ROUNDS = 3; // 单次推演允许的数据请求轮数上限
 
@@ -230,8 +231,12 @@ export class NarrativeEngine {
   _enemyHeuristic(snapshot) {
     const c = this.store.state.combat;
     const hpRatio = c ? c.enemy.hp / c.enemy.maxHp : 1;
-    if (hpRatio < 0.25 && Math.random() < 0.4) {
+    if (hpRatio < 0.25 && Math.random() < 0.3) {
       return { action: 'guard', narration: `【${snapshot.敌方.名称}】势弱，收势回防` };
+    }
+    // 敌方蓝量模拟：随机决定是否静息（恢复法力）
+    if (Math.random() < 0.15) {
+      return { action: 'rest', narration: `【${snapshot.敌方.名称}】静心调息，气息渐稳` };
     }
     if (Math.random() < 0.45) {
       const skills = c?.enemy.skills ?? [];
@@ -239,6 +244,101 @@ export class NarrativeEngine {
       if (sk) return { action: 'skill', skill: sk.name, narration: '' };
     }
     return { action: 'attack', narration: '' };
+  }
+
+  /* ---------- 地图模式 NPC 对话（AI 仅作对话辅助，不驱动剧情） ---------- */
+
+  /** NPC/玩家 上下文（供打招呼与自由对话） */
+  _npcContext(npc) {
+    const s = this.store.state;
+    return {
+      npc: {
+        姓名: npc.name, 身份: npc.identity,
+        性别: npc.gender === 'female' ? '女' : '男',
+        性格: npc.personality, 喜好: npc.likes,
+        功能: npc.function ? (FACILITY_TYPES[npc.function]?.label ?? npc.function) : '无',
+        好感: npc.affinity
+      },
+      player: {
+        姓名: s.name, 境界: `${s.realm}（${s.realmIndex + 1}重天）`,
+        宗门: s.sect ? (SECTS[s.sect]?.name ?? s.sect) : '散修',
+        性别: s.gender === 'female' ? '女' : '男',
+        出身: s.origin || '未明',
+        邪修: s.evil ? '是' : '否'
+      }
+    };
+  }
+
+  /** 见面首句（AI 生成，兼顾 NPC 信息与玩家角色信息，特别是功能） */
+  async npcGreet(npc) {
+    if (this.store.get('aiReady')) {
+      const ctx = this._npcContext(npc);
+      const content = await this._chat([
+        { role: 'system', content: CONFIG.npcGreetPrompt },
+        { role: 'user', content: `NPC信息：${JSON.stringify(ctx.npc)}\n玩家信息：${JSON.stringify(ctx.player)}\n请生成招呼。` }
+      ], 0.9, 'npc');
+      const text = this._cleanNpcText(content);
+      if (text) return text;
+    }
+    return this._fallbackGreet(npc);
+  }
+
+  /** 自由对话（AI 生成，符合 NPC 信息，不提供实质性奖励） */
+  async npcChat(npc, text, log = []) {
+    if (this.store.get('aiReady')) {
+      const ctx = this._npcContext(npc);
+      const recent = log.slice(-6).map(m => `${m.from === 'player' ? '玩家' : '你'}：${m.text}`).join('\n');
+      const content = await this._chat([
+        { role: 'system', content: CONFIG.npcChatPrompt },
+        { role: 'user', content: `NPC信息：${JSON.stringify(ctx.npc)}\n玩家信息：${JSON.stringify(ctx.player)}\n近日对话：\n${recent || '（无）'}\n玩家说：「${text}」\n请回应。` }
+      ], 0.9, 'npc');
+      const out = this._cleanNpcText(content);
+      if (out) return out;
+    }
+    return this._fallbackChat(npc, text);
+  }
+
+  _cleanNpcText(text) {
+    if (!text) return null;
+    const t = String(text).trim().replace(/^["「『\s]+|["」』\s]+$/g, '').trim();
+    if (!t || t.includes('needData') || t.startsWith('{')) return null;
+    return t.slice(0, 120);
+  }
+
+  _fallbackGreet(npc) {
+    const byFn = {
+      menpai:   '既到此地，所为何事？宗门规矩，还望谨言慎行。',
+      liandan:  '丹香正浓——小友也是为丹道而来？草药齐备，方可开炉。',
+      liangong: '拳脚无眼。既要请教，先报上境界来。',
+      leitai:   '擂台之上，胜者为尊。小友可敢一战？',
+      fangshi:  '瞧一瞧看一看，灵石银元，童叟无欺。',
+      danfang:  '丹药草药，应有尽有。小友缺些什么？',
+      cangshu:  '藏书万卷，只待有缘人。静些，莫惊了典籍。',
+      biguan:   '此处清净，正宜闭关潜修。',
+      qiju:     '一路辛苦，且在此安歇片刻吧。'
+    };
+    const line = npc.function ? byFn[npc.function] : null;
+    if (line) return line;
+    // 无功能 NPC 按性格兜底
+    const seed = [...npc.name].reduce((a, c) => a + c.charCodeAt(0), 0);
+    const casual = [
+      `在下${npc.name}，${npc.identity}。小友面生得很，可是初来乍到？`,
+      `哟，哪来的道友？我乃${npc.name}，有何贵干？`,
+      `（${npc.name}抬眼打量你）有事便说，无事便请自便。`
+    ];
+    return casual[seed % casual.length];
+  }
+
+  _fallbackChat(npc, text) {
+    const seed = [...String(text) + npc.name].reduce((a, c) => a + c.charCodeAt(0), 0);
+    const lines = [
+      `嗯……小友所言，倒也有趣。`,
+      `此事我亦不甚明了，帮不上什么忙。`,
+      `呵呵，修仙路上，各人有各人的缘法。`,
+      `（${npc.name}微微颔首）我不过${npc.identity}，所知有限。`,
+      `话虽如此，还需小友自行斟酌。`
+    ];
+    return lines[seed % lines.length];
   }
 
   /* ---------- 角色创建候选生成 ---------- */

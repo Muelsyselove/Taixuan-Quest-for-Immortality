@@ -81,6 +81,26 @@ export const DOMAINS = [
     present(s) {
       return { 记载: s.history.slice(-30).map(h => `第${h.day}日：${h.text}`) };
     }
+  },
+  {
+    key: 'mapmode',
+    file: 'mapmode.json',
+    label: '地图模式',
+    desc: '地图模式进度：模式标记、财富（银元/灵石）、年月时间、炼丹等级经验、草药库存、地图位置、所属宗门与各宗门好感、邪修标记、性别',
+    keys: ['mode', 'wealth', 'mapTime', 'alchemyLevel', 'alchemyExp', 'herbs',
+           'mapLocation', 'sect', 'sectAffinity', 'evil', 'gender'],
+    present(s) {
+      return {
+        模式: s.mode,
+        财富: `${s.wealth?.silver ?? 0} 银元 · ${s.wealth?.spirit ?? 0} 灵石`,
+        时间: `第${s.mapTime?.year ?? 1}年${s.mapTime?.month ?? 1}月`,
+        炼丹: `Lv.${s.alchemyLevel ?? 1}（经验 ${s.alchemyExp ?? 0}）`,
+        草药: Object.entries(s.herbs ?? {}).map(([k, n]) => `${k}×${n}`),
+        宗门: s.sect ?? '散修',
+        宗门好感: s.sectAffinity,
+        邪修: s.evil ? '是' : '否'
+      };
+    }
   }
 ];
 

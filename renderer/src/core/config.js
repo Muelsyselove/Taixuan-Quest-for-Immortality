@@ -2,12 +2,12 @@
 export const CONFIG = {
   gameTitle: '太玄问道',
   gameSubtitle: '一缕神魂入太玄 · 万般因果问长生',
-  version: '2.1.0',
+  version: '2.2.0',
 
   // 主界面模式入口（available=false 表示敬请期待）
   modes: [
     { key: 'dialogue', icon: 'scroll', title: '对话模式', desc: '与天道对答，以言语书写你的修仙长卷', available: true },
-    { key: 'explore', icon: 'spark', title: '探索模式', desc: '自由漫游山河舆图，踏遍机缘秘境', available: false, badge: '敬请期待' },
+    { key: 'map', icon: 'spark', title: '地图模式', desc: '自由漫游山河舆图，踏遍机缘秘境', available: true, badge: 'V2.2' },
     { key: 'settings', icon: 'talisman', title: '设 置', desc: '画质 · 声音 · AI 接入 · 花费价目', available: true }
   ],
 
@@ -70,7 +70,20 @@ export const CONFIG = {
       { id: 'seed-2', name: '残破玉简', desc: '穿越时怀中所藏，表面裂纹中隐有光纹流转。', effect: '参悟后修为 +20', rarity: 'jingliang', category: 'gongfa', day: 1, usable: true, effects: { cultivation: 20 } }
     ],
     location: 'qingyun',
-    day: 1
+    day: 1,
+    // 地图模式扩展
+    mode: 'dialogue', // dialogue | map
+    wealth: { silver: 100, spirit: 0 }, // 财富：银元/灵石
+    mapTime: { year: 1, month: 1 }, // 地图模式时间
+    alchemyLevel: 1, // 炼丹等级
+    alchemyExp: 0, // 炼丹经验
+    herbs: {}, // 草药库存 { herbKey: count }
+    mapLocation: null, // 地图模式当前位置 { world: 'qingyun', region: null, scene: null }
+    sect: null, // 所属宗门
+    sectAffinity: {}, // 各宗门好感度 { sectId: affinity }
+    evil: false, // 是否邪修
+    gender: 'male', // 性别（部分宗门有性别要求）
+    dead: null // 陨落标记 { reason:'lifespan', at:{year,month} }（地图模式寿元尽时置位）
   },
 
   // 出身预设（创建角色时可选，也允许自由填写 ≤100 字）
@@ -252,8 +265,18 @@ export const CONFIG = {
   // 敌方战斗决策提示词
   combatPrompt: `你是修仙战斗中敌方的操控者。根据系统给出的战斗状态，为敌方选择本回合行动。
 【输出契约】只输出 JSON：
-{ "action": "attack" | "skill" | "guard", "skill": "技能名(action为skill时必填)", "narration": "一句战斗描写(30字内)" }
-【策略】血量低时可 guard 防守蓄势；技能伤害高但不可连续使用同一招超过两次；偶尔普攻即可。`,
+{ "action": "attack" | "skill" | "guard" | "rest", "skill": "技能名(action为skill时必填)", "narration": "一句战斗描写(30字内)" }
+【策略】血量低时可 guard 防守蓄势；法力不足时可 rest 静息恢复（恢复50%法力）；技能伤害高但不可连续使用同一招超过两次；偶尔普攻即可。`,
+
+  // 地图模式 NPC 打招呼提示词（首句由 AI 生成，须兼顾 NPC 信息与玩家角色信息，特别是功能）
+  npcGreetPrompt: `你是修仙世界中的一名 NPC。系统会给你 NPC 信息（姓名/身份/性别/性格/喜好/功能）与玩家角色信息。
+请生成你见到玩家时的第一句招呼。
+【要求】严格符合 NPC 的身份、性格与喜好；若 NPC 有功能（如炼丹/交易/切磋/传功），须自然提及所能提供的服务；可照顾玩家的境界、宗门、性别、出身等信息；30~60字；只输出招呼文本本身，不要 JSON、不要引号、不要旁白。`,
+
+  // 地图模式 NPC 自由对话提示词
+  npcChatPrompt: `你是修仙世界中的一名 NPC，正在与玩家交谈。系统会给你 NPC 信息（姓名/身份/性别/性格/喜好/功能）、玩家角色信息与近日对话记录。
+请以第一人称回应玩家的话。
+【要求】1~3句话，严格符合人设（身份/性格/喜好）；不提供实质性奖励——不赠送物品、不传授功法、不泄露机密、不承诺好处；只输出对话文本本身，不要 JSON、不要引号、不要旁白。`,
 
   // 角色创建生成提示词（天赋候选；主动/被动技能一律取自系统技能库，不再由 AI 生成）
   creationPrompt: `你是修仙游戏的角色创建生成器。根据请求生成候选天赋，只输出 JSON 数组，不要任何额外文字。
