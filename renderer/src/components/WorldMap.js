@@ -169,23 +169,29 @@ export class WorldMap extends Component {
   }
 
   _bindDrag(el) {
-    let dragging = false, last = null;
+    let dragging = false, captured = false, last = null, pid = null;
     el.addEventListener('pointerdown', (e) => {
-      if (e.target.closest('button')) return;
-      dragging = true;
+      if (e.target.closest('button')) return; // 不抢占按钮点击
+      dragging = true; captured = false;
       last = { x: e.clientX, y: e.clientY };
-      el.setPointerCapture(e.pointerId);
+      pid = e.pointerId;
       el.classList.add('dragging');
     });
     el.addEventListener('pointermove', (e) => {
       if (!dragging) return;
+      // 位移超过阈值才判定拖拽并捕获指针——pointerdown 即捕获会把 click 重定向到容器，吞掉节点点击
+      if (!captured) {
+        if (Math.hypot(e.clientX - last.x, e.clientY - last.y) < 4) return;
+        captured = true;
+        try { el.setPointerCapture(pid); } catch { /* 指针已释放则忽略 */ }
+      }
       const rect = this.svg.getBoundingClientRect();
       this.pan.x += ((e.clientX - last.x) / rect.width) * 1000;
       this.pan.y += ((e.clientY - last.y) / rect.height) * 600;
       last = { x: e.clientX, y: e.clientY };
       this._applyView();
     });
-    const stop = () => { dragging = false; el.classList.remove('dragging'); };
+    const stop = () => { dragging = false; captured = false; el.classList.remove('dragging'); };
     el.addEventListener('pointerup', stop);
     el.addEventListener('pointercancel', stop);
   }

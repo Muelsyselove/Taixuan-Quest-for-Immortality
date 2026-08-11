@@ -119,12 +119,13 @@ export class MapScreen extends Component {
 
   /** 主视图渲染（animate=true 时走过场动画） */
   _renderMain(animate) {
-    const level = this._levelOf();
-    const loc = this.store.state.mapLocation ?? {};
-    if (this._transitioning) return;
-    if (level === this._level && this._mainKid) { this._renderMini(); return; } // 同级移动仅刷新侧栏
+    if (this._transitioning) return; // 过场结束时会按最新状态补一次渲染，不会丢导航
+    if (this._levelOf() === this._level && this._mainKid) { this._renderMini(); return; } // 同级移动仅刷新侧栏
 
     const swap = () => {
+      // 换景时刻重读最新状态，避免用过场开始前捕获的旧位置渲染
+      const level = this._levelOf();
+      const loc = this.store.state.mapLocation ?? {};
       this._mainKid?.destroy();
       this._mainKid = null;
       this.mainEl.innerHTML = '';
@@ -166,6 +167,8 @@ export class MapScreen extends Component {
       setTimeout(() => {
         this.veilEl.classList.remove('off');
         this._transitioning = false;
+        // 过场期间被拦截的导航：状态与视图不一致时按最新状态补渲染
+        if (this._levelOf() !== this._level) this._renderMain(true);
       }, 420);
     }, 260);
   }

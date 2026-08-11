@@ -322,7 +322,12 @@ body {
 .map-node.is-here .node-label { fill: var(--gold-hi); }
 .map-node.is-here .node-halo {
   stroke: var(--gold);
-  animation: halo 2s ease-out infinite;
+  r: 24; /* 固定半径做透明度呼吸——半径动画会抖动包围盒，挡住自动化点击的稳定性判定 */
+  animation: halo-breathe 2s ease-in-out infinite;
+}
+@keyframes halo-breathe {
+  0%, 100% { opacity: .15; }
+  50%      { opacity: .85; }
 }
 @keyframes halo {
   from { r: 16; opacity: .9; }
@@ -370,7 +375,7 @@ body {
 
 /* ---------- 弹窗 ---------- */
 .modal-mask {
-  position: fixed; inset: 0; z-index: 100;
+  position: fixed; inset: 0; z-index: 120; /* 须高于 .npc-mask(110)：NPC 对话内打开的功能弹窗要盖在对话之上 */
   background: rgba(4,6,9,.7);
   backdrop-filter: blur(6px);
   display: grid; place-items: center;

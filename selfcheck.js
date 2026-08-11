@@ -19,6 +19,7 @@ const { _electron: electron } = require('playwright-core');
     g.engine.settings.apiKey = '';       // 仅改内存，不落盘
     g.engine._syncReady();
     g.engine.onCombatSignal = null;      // 剧情推进不再随机触发战斗
+    g.mist.stop?.();                     // 软件渲染环境下停掉灵雾背景，避免拖垮主线程
   });
   await win.waitForSelector('.menu-card', { timeout: 10000 });
   out.menu = {
