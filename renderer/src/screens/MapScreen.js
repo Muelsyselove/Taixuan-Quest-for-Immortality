@@ -6,7 +6,7 @@
 //   scene 设              → 主视图 = 场景绘卷
 import { Component, h, icon } from '../core/component.js';
 import { CONFIG } from '../core/config.js';
-import { WORLD_MAP, SECTS, SCENES, NPCS, REGION_MAPS } from '../core/mapData.js';
+import { SECTS, SCENES, NPCS } from '../core/mapData.js';
 import { CharacterPanel } from '../components/CharacterPanel.js';
 import { WorldMap } from '../components/WorldMap.js';
 import { RegionMap } from '../components/RegionMap.js';

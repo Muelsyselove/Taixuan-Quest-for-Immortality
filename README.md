@@ -1,5 +1,7 @@
 # 太玄问道 · Taixuan: Quest for Immortality
 
+![太玄问道](docs/images/banner.jpg)
+
 > 道友，这都 AI 时代了，你怎么还在跟着宗门教导死学硬啃？
 
 **太玄问道**是一款由 AI 驱动的东方修仙文字游戏。Electron 为骨、WebGL 为魂、SVG 绘山河，大语言模型实时生成剧情——每段旅途独一无二，每位道友的证道之路，皆由天道亲手书写。
@@ -7,27 +9,42 @@
 ![Electron](https://img.shields.io/badge/Electron-31-47848F?logo=electron&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%2F10%2F11-blue)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
-![Version](https://img.shields.io/badge/version-1.0.0-gold)
+![Version](https://img.shields.io/badge/version-2.0.0-gold)
 
 ---
 
 ## ✨ 主要特性
 
-- **天道叙事引擎**：接入国内主流 AI 厂商（DeepSeek、通义、智谱、Moonshot、豆包、讯飞等），剧情实时生成，每一段旅途都独一无二。
-- **角色成长**：境界突破（炼气→筑基→金丹→元婴→化神…）、五行灵根（金木水火土）、属性修炼、天赋与功法习得。
-- **物品系统**：七档品质（平凡·优秀·精良·史诗·传说·洪荒·初元），分类管理，稀有度筛选；丹药、法宝、功法、材料、奇物一应俱全；道具可授予 buff、学习技能或获得天赋。
-- **角色设定**：新征程可自定义灵根（1~5 个）、天赋、被动技能、主动技能（与灵根属性相关）。AI 生成候选，可无限刷新，随心搭配。
-- **战斗系统**：系统驱动的回合制战斗，AI 代理敌方行动，功法招式各有消耗与倍率。
-- **山河舆图**：纯 SVG 绘制的修仙世界地图，支持 **25%~400%** 滚轮缩放与拖拽平移。
-- **存档系统**：多存档槽 + 自动存档，随时读档回溯。
-- **增益系统**：常驻 Buff 栏，记录修行路上所得的种种机缘加成。
-- **NSIS 安装包**：支持自选安装目录、是否创建桌面快捷方式。
+### 双模式玩法
+
+- **对话模式**：AI 实时生成剧情的文字冒险。事件、选项、战斗、奇遇皆由大模型执笔，亦可自由输入行动，天马行空皆能成章。
+- **地图模式**：自由漫游太玄大陆。三级导航（**大世界 → 宗门/区域 → 场景**），纯 SVG 地图支持滚轮缩放与拖拽平移，所见皆可踏足。
+
+![山河舆图](docs/images/worldmap.jpg)
+
+### 修行体系
+
+- **角色成长**：境界突破（炼气→筑基→金丹→元婴→化神…）、五行灵根、属性修炼、天赋与功法习得；地图模式下修为圆满需手动破境，成败由天。
+- **八大宗门**：青云门（混元）、焚天谷（火）、玄冰宫（水）、万兽山（土）、幽冥教（阴）、天剑宗（金）、妙木宗（木）、雷神殿（阳）——各有加入门槛、修炼加成与专属场景。
+- **战斗系统**：系统驱动的回合制战斗，三层结算架构（效果层 / buff 层 / 技能层），AI 代理敌方行动；切磋点到为止，死战凶险万分。
+- **炼丹闭关**：采集草药、按方炼丹，丹药品质随炼丹水平与药材品质浮动；闭关入定消耗时光换取修为——留意寿元，莫道坐化方悔。
+- **财富经营**：银元与灵石双向汇兑，坊市买卖，宗门任务领取赏银。
+
+![闭关修炼](docs/images/cultivation.jpg)
+
+### 角色与世界
+
+- **角色设定**：新征程自定义灵根（1~5 个）、天赋、被动/主动技能（与灵根属性相关）。AI 生成候选，可无限刷新，随心搭配。
+- **人物关系**：十余位性格迥异的 NPC——掌门、长老、药童、情报贩子……寒暄赠答皆入史册，好感度影响宗门际遇。
+- **物品系统**：七档品质（平凡·优秀·精良·史诗·传说·洪荒·初元），丹药、法宝、功法、材料、奇物一应俱全；道具可授予 buff、学习技能或获得天赋。
+- **存档系统**：多角色 × 多存档槽，按域分文件存储 + 自动存档，随时读档回溯。
+- **花费统计**：AI 调用用量与花费实时记录，缓存命中率与堆叠图一目了然。
 
 ## 🚀 快速开始
 
 ### 下载安装
 
-前往 [Releases](https://github.com/Muelsyselove/Taixuan-Quest-for-Immortality/releases) 页面下载最新版本的 `Taixuan-Setup-x.x.x.exe`，运行后按向导安装即可。
+前往 [Releases](https://github.com/Muelsyselove/Taixuan-Quest-for-Immortality/releases) 页面下载最新版本的 `太玄问道-Setup-x.x.x.exe`，运行后按向导安装即可（支持自选安装目录）。
 
 ### 本地运行（开发模式）
 
@@ -57,56 +74,89 @@ npm run pack
 npm run selfcheck
 ```
 
-运行自动化自检脚本，验证核心功能（角色创建、物品使用、战斗、存档等）是否正常。
+基于 Playwright 驱动 Electron 的全功能回归：主界面 → 角色创建 → 对话/地图双模式 → 战斗 → 存档往返 → 花费统计，全流程自动验证。
 
 ## 🔑 AI 配置
 
 首次启动后，点击顶部标题栏的**设置**按钮（⚙），填写你所使用的 AI 供应商信息：
 
-1. **选择供应商**：支持 DeepSeek、阿里云通义千问、智谱 GLM、Moonshot、字节豆包、讯飞星火等多家国产大模型。
-2. **填写 API Key**：在对应服务商平台申请 API Key 后填入。
-3. **选择模型**：填入模型 ID（如 `deepseek-chat`、`qwen-max`、`glm-4` 等）。
+1. **选择供应商**：内置 DeepSeek、月之暗面 Kimi、智谱 GLM、阿里通义千问、字节豆包、MiniMax，亦支持任何 OpenAI 兼容接口（自定义 Base URL）。
+2. **填写 API Key**：在对应服务商平台申请后填入。
+3. **选择模型**：填入模型 ID（如 `deepseek-chat`、`kimi-k2-turbo-preview`、`glm-4.6` 等）。
 
-无 AI Key 时游戏也能以"无 AI 模式"运行，使用内置兜底内容，但剧情丰富度会大幅降低——强烈建议配置 API Key 以获得完整体验。
+无 AI Key 时游戏也能以「无 AI 模式」运行，使用内置兜底内容，但剧情丰富度会大幅降低——强烈建议配置 API Key 以获得完整体验。
 
 ## 🏗️ 项目结构
 
 ```
 Taixuan-Quest-for-Immortality/
-├── main.js                  # Electron 主进程
-├── preload.js               # 预加载脚本（IPC 桥接）
-├── package.json             # 依赖与构建配置
+├── main.js                  # Electron 主进程（窗口 / IPC / 存档读写）
+├── preload.js               # 预加载脚本（contextBridge 白名单 IPC）
+├── package.json             # 依赖与 electron-builder 配置
 ├── build/
 │   └── installer.nsh        # NSIS 安装包自定义脚本
+├── docs/images/             # README 插图
 ├── renderer/                # 渲染层（前端）
 │   ├── index.html           # 入口 HTML
-│   ├── styles/
-│   │   └── main.css         # 玄墨鎏金主题样式
+│   ├── styles/              # 玄墨鎏金主题（按功能域拆分，main.css 聚合引入）
+│   │   ├── main.css         # 聚合入口（@import 级联：base→game→creation→menu→ui→map）
+│   │   ├── base.css         # 主题变量 / reset / 标题栏 / 布局 / 滚动条
+│   │   ├── game.css         # 对话模式界面
+│   │   ├── creation.css     # 角色设定（新开征程）
+│   │   ├── menu.css         # 主界面 / 角色与存档选择 / 设置视图
+│   │   ├── ui.css           # 通用 UI 组件库（Tabs / 表单 / 图表 / 统计）
+│   │   └── map.css          # 地图模式（三级导航 / 场景 / NPC / 炼丹 / 突破）
 │   └── src/
 │       ├── main.js          # 渲染进程入口
-│       ├── core/
-│       │   ├── config.js    # 游戏配置（境界/物品/地图/提示词/灵根等）
-│       │   ├── store.js     # 状态管理（属性/背包/存档/增益/有效属性计算）
-│       │   ├── ai.js        # AI 通信层（多供应商适配 + 创建生成）
-│       │   ├── combat.js    # 战斗系统（伤害计算/敌方AI）
+│       ├── core/            # 游戏内核（纯逻辑，不依赖 DOM）
+│       │   ├── config.js    # 游戏配置（境界 / 物品 / 提示词 / 灵根 / AI 供应商）
+│       │   ├── store.js     # 状态内核：读写 / 订阅发布 / 效果结算 / 属性派生
+│       │   ├── domains/     # 状态领域方法（Object.assign 混入 store 原型）
+│       │   │   ├── skills.js       # 技能与增益
+│       │   │   ├── items.js        # 物品
+│       │   │   ├── relations.js    # 人物关系
+│       │   │   ├── mapMode.js      # 地图模式（游历 / 闭关 / 炼丹 / 突破）
+│       │   │   ├── wealth.js       # 财富 / 商店 / 宗门
+│       │   │   └── persistence.js  # 存档序列化与角色重置
+│       │   ├── mapData.js   # 地图数据聚合入口 + 查询工具函数
+│       │   ├── mapData/     # 地图数据层（按域拆分，组件只读取不硬编码）
+│       │   │   ├── styles.js       # 灵根风格 / 设施类型
+│       │   │   ├── npcs.js         # NPC 数据
+│       │   │   ├── scenes.js       # 场景数据
+│       │   │   ├── sects.js        # 八大宗门
+│       │   │   └── maps.js         # 大世界 / 二级地图结构
+│       │   ├── ai.js        # AI 通信层（多供应商适配 / NPC 对话 / 创建生成）
+│       │   ├── combat.js    # 战斗引擎（三层结算：效果层 / buff 层 / 技能层）
+│       │   ├── fx.js        # 效果层原子实现与 buff 构建
+│       │   ├── skills.js    # 技能库
+│       │   ├── alchemy.js   # 草药 / 丹方 / 炼丹结算
+│       │   ├── breakthrough.js # 突破系统
+│       │   ├── time.js      # 地图时间（年/月）与寿元
+│       │   ├── wealth.js    # 财富换算
+│       │   ├── data.js      # 存档分域拆分 / 合并
 │       │   ├── saves.js     # 存档管理（本地文件读写）
-│       │   └── component.js # UI 组件基类（h 函数/响应式）
+│       │   ├── usageStats.js# 花费统计
+│       │   ├── audio.js     # 音效
+│       │   └── component.js # UI 组件基类（h 函数 / 响应式订阅）
 │       ├── components/      # UI 组件
-│       │   ├── CharacterPanel.js   # 个人面板（属性/灵根/增益/入口）
-│       │   ├── EventPanel.js       # 事件面板（叙事文本）
-│       │   ├── OptionDock.js       # 选项坞（预设选项 + 自由输入）
-│       │   ├── MapView.js          # 山河舆图（SVG 缩放/拖拽）
-│       │   ├── HistoryLog.js       # 史册（行动日志）
-│       │   ├── InventoryModal.js   # 背包二级页（分类/筛选/使用）
-│       │   ├── SkillsModal.js      # 功法神通（技能/天赋展示）
-│       │   ├── CreationModal.js    # 角色设定（新开征程）
-│       │   ├── SaveLoadModal.js    # 存档/读档
-│       │   ├── SettingsModal.js    # 设置（AI 配置）
-│       │   └── CombatOverlay.js    # 战斗浮层
+│       │   ├── svgViewport.js      # SVG 视口（缩放 / 拖拽 / 工具条，各地图共用）
+│       │   ├── WorldMap.js         # 大世界地图（一级）
+│       │   ├── RegionMap.js        # 区域地图（二级）
+│       │   ├── SceneView.js        # 场景绘卷（三级）
+│       │   ├── MapView.js          # 山河舆图（对话模式）
+│       │   └── ...                 # 面板 / 模态等 20+ 组件
+│       ├── screens/         # 界面（主菜单 / 选角 / 对话 / 地图 / 存档 / 设置）
+│       ├── ui/              # 通用控件（Modal / 表单 / 柱形图）
 │       └── gl/
-│           └── MistRenderer.js     # WebGL 背景（山水雾气渲染）
-└── selfcheck.js             # Playwright 自动化自检
+│           └── MistRenderer.js     # WebGL 灵雾背景
+└── selfcheck.js             # Playwright 全功能回归（Electron 驱动）
 ```
+
+### 架构要点
+
+- **状态管理**：单一数据源 `GameStore` + 键级订阅发布；业务方法按领域拆至 `core/domains/`，经原型混入保持对外 API 不变。
+- **战斗三层结算**：效果层（`fx.js` 原子效果）→ buff 层（效果自由组合、可叠加）→ 技能层（蓝耗与结构化效果），职责分明、可独立测试。
+- **SVG 视口复用**：缩放 / 平移 / 拖拽 / 工具条收敛于 `svgViewport.js`，大世界、区域图、山河舆图共用同一套交互。
 
 ## 🎨 设计主题
 

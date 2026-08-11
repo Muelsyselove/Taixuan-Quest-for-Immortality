@@ -1,0 +1,207 @@
+/* 基础层：主题变量 / reset / 标题栏 / 布局 / 通用面板 / 弹窗 / 滚动条 / 响应式 / 通用模态框 */
+
+/* ============================================================
+   太玄问道 · 玄墨鎏金主题
+   ============================================================ */
+:root {
+  --ink-0: #07090d;
+  --ink-1: rgba(13, 18, 26, 0.82);
+  --ink-2: rgba(20, 27, 38, 0.72);
+  --line: rgba(216, 178, 92, 0.22);
+  --line-strong: rgba(216, 178, 92, 0.5);
+  --gold: #d8b25c;
+  --gold-hi: #f4d98c;
+  --jade: #7fb3a8;
+  --text: #e8e2d2;
+  --text-dim: #9a937f;
+  --danger: #e35d6a;
+  --font-display: 'Ma Shan Zheng', 'Noto Serif SC', serif;
+  --font-body: 'Noto Serif SC', 'ZCOOL XiaoWei', serif;
+  --radius: 14px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--ink-0);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+#gl-bg {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  z-index: 0;
+}
+
+/* ---------- 标题栏 ---------- */
+#titlebar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 44px; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px 0 18px;
+  -webkit-app-region: drag;
+  background: linear-gradient(180deg, rgba(7,9,13,.85), transparent);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark {
+  font-family: var(--font-display);
+  font-size: 20px; color: var(--ink-0);
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+  padding: 2px 8px; border-radius: 6px;
+  letter-spacing: 2px;
+}
+.brand-text { font-size: 12px; letter-spacing: 4px; color: var(--text-dim); }
+.win-controls { display: flex; gap: 4px; -webkit-app-region: no-drag; }
+.win-controls button {
+  width: 36px; height: 30px;
+  background: transparent; border: none; color: var(--text-dim);
+  font-size: 14px; cursor: pointer; border-radius: 8px;
+  transition: all .2s;
+}
+.win-controls button:hover { background: rgba(216,178,92,.15); color: var(--gold-hi); }
+.win-controls #btn-close:hover { background: rgba(227,93,106,.25); color: var(--danger); }
+
+/* ---------- 布局 ---------- */
+#app {
+  position: relative; z-index: 1;
+  height: 100vh;
+  padding-top: 44px; /* 标题栏 */
+}
+.screen {
+  height: 100%;
+  display: flex; flex-direction: column;
+  animation: screen-in .45s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+#layout {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 300px 1fr 340px;
+  gap: 16px;
+}
+#col-left, #col-center, #col-right {
+  display: flex; flex-direction: column; gap: 16px; min-height: 0;
+}
+#col-center { flex: 1; }
+
+/* ---------- 通用面板 ---------- */
+.panel {
+  position: relative;
+  background: var(--ink-1);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 18px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(244,217,140,.06);
+  overflow: hidden;
+  animation: panel-in .7s cubic-bezier(.22,1,.36,1) both;
+}
+.panel::before { /* 顶角鎏金线 */
+  content: '';
+  position: absolute; top: 0; left: 12%; right: 12%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+#col-left .panel   { animation-delay: .05s; }
+#col-center .panel:nth-child(1) { animation-delay: .15s; }
+#col-center .panel:nth-child(2) { animation-delay: .25s; }
+#col-right .panel:nth-child(1)  { animation-delay: .2s; }
+#col-right .panel:nth-child(2)  { animation-delay: .3s; }
+
+.panel-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px 10px;
+  color: var(--gold);
+  border-bottom: 1px solid var(--line);
+}
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 16px; letter-spacing: 6px;
+}
+.icon { flex: none; }
+
+
+/* ---------- 弹窗 ---------- */
+.modal-mask {
+  position: fixed; inset: 0; z-index: 120; /* 须高于 .npc-mask(110)：NPC 对话内打开的功能弹窗要盖在对话之上 */
+  background: rgba(4,6,9,.7);
+  backdrop-filter: blur(6px);
+  display: grid; place-items: center;
+  animation: mask-in .25s both;
+}
+@keyframes mask-in { from { opacity: 0; } }
+.modal {
+  width: 460px; max-width: 92vw;
+  background: var(--ink-1);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px rgba(0,0,0,.6);
+  animation: modal-in .35s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes modal-in { from { opacity: 0; transform: translateY(20px) scale(.97); } }
+.modal-close {
+  margin-left: auto;
+  background: none; border: none; color: var(--text-dim);
+  font-size: 20px; cursor: pointer;
+}
+.modal-close:hover { color: var(--gold-hi); }
+.set-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+.set-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); letter-spacing: 2px; }
+.set-input {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  outline: none;
+  transition: border .2s;
+}
+.set-input:focus { border-color: var(--line-strong); }
+.set-tip { font-size: 11.5px; color: var(--text-dim); line-height: 1.8; opacity: .85; }
+.set-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 0 20px 18px; }
+.btn {
+  padding: 9px 22px; border-radius: 9px;
+  font-family: var(--font-body); font-size: 13px; letter-spacing: 3px;
+  cursor: pointer; transition: all .25s;
+}
+.btn.ghost { background: none; border: 1px solid var(--line); color: var(--text-dim); }
+.btn.ghost:hover { color: var(--text); border-color: var(--line-strong); }
+.btn.gold {
+  border: none;
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+  color: var(--ink-0); font-weight: 600;
+}
+.btn.gold:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(216,178,92,.35); }
+
+/* ---------- 滚动条 ---------- */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(216,178,92,.25); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(216,178,92,.45); }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1400px) {
+  #layout { grid-template-columns: 260px 1fr 300px; }
+  .event-text { font-size: 15.5px; }
+}
+
+
+/* ---------- 通用模态框主体 / 底部 ---------- */
+.modal-body-c { padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; min-height: 0; flex: 1; overflow-y: auto; }
+.modal-foot-c { display: flex; justify-content: flex-end; gap: 10px; padding: 0 18px 16px; }
+.modal.relations-modal, .modal.usage-modal {
+  width: 720px; max-width: 95vw;
+  max-height: 86vh;
+  display: flex; flex-direction: column;
+}

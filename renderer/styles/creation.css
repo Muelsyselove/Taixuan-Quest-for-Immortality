@@ -1,0 +1,116 @@
+/* 角色设定（新开征程）：灵根 / 技能 / 天赋 / 出身 */
+
+/* ---------- 角色设定（新开征程） ---------- */
+.modal.creation-modal {
+  width: 680px; max-width: 95vw; max-height: 86vh;
+  display: flex; flex-direction: column;
+}
+.cr-scroll { flex: 1; overflow-y: auto; padding: 6px 20px 10px; display: flex; flex-direction: column; gap: 16px; }
+.cr-sec { display: flex; flex-direction: column; gap: 10px; }
+.cr-sec-head { display: flex; align-items: baseline; gap: 10px; }
+.cr-sec-head b { font-family: var(--font-display); font-size: 15px; letter-spacing: 3px; color: var(--gold); }
+.cr-tip { font-size: 11px; color: var(--text-dim); opacity: .8; }
+.cr-count { margin-left: auto; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.cr-refresh {
+  padding: 3px 12px; font-size: 11px; letter-spacing: 1px;
+  background: none; border: 1px solid var(--line); border-radius: 99px;
+  color: var(--text-dim); cursor: pointer; transition: all .2s;
+}
+.cr-refresh:hover:not(:disabled) { color: var(--gold-hi); border-color: var(--line-strong); }
+.cr-refresh:disabled { opacity: .4; cursor: wait; }
+
+.cr-roots { display: flex; gap: 10px; }
+.cr-root {
+  width: 44px; height: 44px; border-radius: 50%;
+  font-family: var(--font-display); font-size: 18px;
+  color: var(--root-color);
+  background: rgba(255,255,255,.03);
+  border: 1px solid var(--line);
+  cursor: pointer; transition: all .22s;
+}
+.cr-root:hover { border-color: var(--root-color); transform: translateY(-2px); }
+.cr-root.sel {
+  border-color: var(--root-color);
+  background: color-mix(in srgb, var(--root-color) 16%, transparent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--root-color) 40%, transparent);
+}
+
+.cr-cands { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cr-cand {
+  text-align: left;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+  font-family: var(--font-body);
+  transition: all .2s;
+}
+.cr-cand:hover { border-color: var(--line-strong); transform: translateY(-1px); }
+.cr-cand.sel {
+  border-color: var(--gold);
+  background: rgba(216,178,92,.1);
+  box-shadow: 0 0 10px rgba(216,178,92,.18);
+}
+.cr-cand-head { display: flex; align-items: center; gap: 8px; }
+.cr-cand-head b { font-size: 13px; letter-spacing: 1px; color: var(--text); }
+.cr-cand.sel .cr-cand-head b { color: var(--gold-hi); }
+.cr-cand-root {
+  font-style: normal; font-size: 10px;
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid;
+}
+.cr-cand-cost { font-style: normal; font-size: 10px; color: var(--text-dim); margin-left: auto; }
+.cr-cand-head .cr-cand-root + .cr-cand-cost { margin-left: auto; }
+.cr-cand-desc { font-size: 11.5px; color: var(--text-dim); line-height: 1.6; }
+.cr-cand-struct {
+  font-size: 10.5px; color: var(--jade); line-height: 1.6;
+  letter-spacing: .5px; font-variant-numeric: tabular-nums;
+  border-top: 1px dashed var(--line); padding-top: 4px;
+}
+
+.cr-foot {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 20px 16px; border-top: 1px solid var(--line);
+}
+.cr-hint { flex: 1; font-size: 12px; color: var(--text-dim); letter-spacing: 1px; }
+.cr-confirm { padding: 8px 26px; letter-spacing: 3px; }
+.cr-confirm:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+
+/* ---------- 角色设定：出身 ---------- */
+.cr-origins { display: flex; flex-wrap: wrap; gap: 8px; }
+.cr-origin {
+  padding: 7px 16px;
+  font-size: 12.5px; letter-spacing: 2px;
+  font-family: var(--font-body);
+  color: var(--text-dim);
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  cursor: pointer; transition: all .22s;
+}
+.cr-origin:hover { color: var(--text); border-color: var(--line-strong); transform: translateY(-1px); }
+.cr-origin.sel {
+  color: var(--ink-0); font-weight: 600;
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+  border-color: transparent;
+  box-shadow: 0 0 14px rgba(216,178,92,.3);
+}
+.cr-origin.dim { opacity: .4; }
+.cr-origin-free {
+  width: 100%;
+  resize: none;
+  background: rgba(255,255,255,.045);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px; line-height: 1.8; letter-spacing: 1px;
+  outline: none; transition: all .25s;
+}
+.cr-origin-free:focus { border-color: var(--line-strong); background: rgba(216,178,92,.05); box-shadow: 0 0 0 3px rgba(216,178,92,.08); }
+.cr-origin-count { margin-left: auto; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }

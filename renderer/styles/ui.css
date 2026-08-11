@@ -1,0 +1,166 @@
+/* 通用 UI 组件库：Tabs / FormField / Slider / Toggle / EmptyState / 工具条 / 关系谱 / 柱形图 / 花费统计 */
+
+/* ---------- UI 组件库（Tabs / FormField / Slider / Toggle / EmptyState） ---------- */
+.ui-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.ui-tab {
+  padding: 5px 16px;
+  font-size: 12px; letter-spacing: 2px;
+  font-family: var(--font-body);
+  background: rgba(255,255,255,.04);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  cursor: pointer; transition: all .2s;
+}
+.ui-tab:hover { color: var(--text); border-color: var(--line-strong); }
+.ui-tab.active {
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+  color: var(--ink-0); border-color: transparent; font-weight: 600;
+}
+.ui-field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--text-dim); letter-spacing: 2px; }
+.ui-field-tip { font-size: 11px; opacity: .75; letter-spacing: 1px; }
+.ui-slider-wrap { display: flex; align-items: center; gap: 12px; }
+.ui-slider { flex: 1; accent-color: var(--gold); height: 4px; cursor: pointer; }
+.ui-slider-val { font-size: 12px; color: var(--gold-hi); min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+.ui-toggle {
+  position: relative;
+  width: 42px; height: 22px; border-radius: 99px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,.05);
+  cursor: pointer; transition: all .25s;
+}
+.ui-toggle i {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--text-dim); transition: all .25s;
+}
+.ui-toggle.on { border-color: var(--gold); background: rgba(216,178,92,.16); }
+.ui-toggle.on i { left: 22px; background: var(--gold-hi); box-shadow: 0 0 8px rgba(244,217,140,.5); }
+.ui-empty small { display: block; margin-top: 4px; font-size: 11px; opacity: .7; letter-spacing: 1px; }
+
+/* ---------- 游戏工具条 ---------- */
+.game-screen { padding: 0 16px 16px; }
+.game-toolbar { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 2px 12px; }
+.gt-left, .gt-right { display: flex; align-items: center; gap: 8px; }
+.gt-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 15px;
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--text-dim);
+  font-family: var(--font-body); font-size: 12px; letter-spacing: 2px;
+  cursor: pointer; transition: all .22s;
+}
+.gt-btn:hover { color: var(--gold-hi); border-color: var(--line-strong); background: rgba(216,178,92,.08); transform: translateY(-1px); }
+.gt-char { font-size: 12px; color: var(--gold); letter-spacing: 2px; padding-left: 8px; }
+
+
+/* ---------- 人物关系谱 ---------- */
+.rel-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rel-card {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 7px;
+  animation: opt-in .4s both;
+  transition: border-color .2s;
+}
+.rel-card:hover { border-color: var(--line-strong); }
+.rel-head { display: flex; align-items: center; gap: 8px; }
+.rel-name { font-family: var(--font-display); font-size: 16px; letter-spacing: 3px; color: var(--text); }
+.rel-tier { margin-left: auto; font-size: 10px; letter-spacing: 2px; border: 1px solid; border-radius: 99px; padding: 1px 9px; }
+.rel-meta { font-size: 11.5px; color: var(--text-dim); letter-spacing: 1px; }
+.rel-divider { margin: 0 5px; opacity: .5; font-style: normal; }
+.rel-bar {
+  position: relative;
+  height: 16px;
+  background: rgba(255,255,255,.05);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.rel-bar-mid { position: absolute; left: 50%; top: 2px; bottom: 2px; width: 1px; background: rgba(255,255,255,.18); }
+.rel-bar-fill {
+  position: absolute; top: 3px; bottom: 3px;
+  border-radius: 99px;
+  transition: width .6s cubic-bezier(.22,1,.36,1);
+  opacity: .85;
+}
+.rel-bar-val {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-size: 10px; font-variant-numeric: tabular-nums;
+}
+.rel-day { font-size: 10px; color: var(--text-dim); opacity: .6; letter-spacing: 1px; }
+
+/* ---------- 柱形图 ---------- */
+.barchart {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px 8px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.bc-head { display: flex; align-items: baseline; gap: 10px; }
+.bc-title { font-size: 12.5px; color: var(--gold); letter-spacing: 3px; }
+.bc-max { margin-left: auto; font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.bc-stage { position: relative; height: 150px; }
+.bc-grid { position: absolute; inset: 0; }
+.bc-grid i { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,.05); }
+.bc-plot { position: absolute; inset: 0; }
+.bc-bar {
+  position: absolute; top: 0; bottom: 0;
+  padding: 0 3px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  transition: left .55s cubic-bezier(.22,1,.36,1), width .55s cubic-bezier(.22,1,.36,1), opacity .4s;
+}
+.bc-fill {
+  width: 100%;
+  border-radius: 4px 4px 1px 1px;
+  transition: height .65s cubic-bezier(.22,1,.36,1);
+  box-shadow: 0 0 10px rgba(216,178,92,.12);
+  display: flex; flex-direction: column-reverse; /* 堆叠段自下而上 */
+  overflow: hidden;
+}
+.bc-seg { display: block; width: 100%; flex: none; }
+.bc-seg:last-child { border-radius: 4px 4px 0 0; }
+.bc-legend { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; }
+.bc-legend i { display: inline-flex; align-items: center; gap: 3px; font-style: normal; }
+.bc-legend em { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+.bc-bar.is-zero .bc-fill { box-shadow: none; opacity: .25; }
+.bc-val {
+  text-align: center;
+  font-size: 9px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  min-height: 11px; margin-bottom: 3px;
+  pointer-events: none;
+}
+.bc-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); letter-spacing: 1px; padding: 0 2px; }
+.bc-pop { animation: bc-pop .45s cubic-bezier(.22,1,.36,1); }
+@keyframes bc-pop { 0% { transform: scale(.985); opacity: .75; } 100% { transform: none; opacity: 1; } }
+
+/* ---------- 花费统计弹窗 ---------- */
+.usage-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.usage-zoom { display: flex; align-items: center; gap: 6px; }
+.usage-zoom-btn { padding: 4px 13px; font-size: 14px; letter-spacing: 0; }
+.usage-zoom-label { min-width: 46px; text-align: center; font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.usage-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.usage-sum-item {
+  background: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.usage-sum-item i { font-style: normal; font-size: 10.5px; color: var(--text-dim); letter-spacing: 2px; }
+.usage-sum-item b { font-size: 15px; color: var(--gold-hi); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+.usage-charts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.usage-pricing {
+  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.usage-pricing .ui-field { width: 130px; }
+.usage-pricing .btn { letter-spacing: 1px; padding: 7px 14px; font-size: 12px; }
+.usage-pricing .ui-field-tip { flex-basis: 100%; }

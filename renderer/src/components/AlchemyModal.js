@@ -1,7 +1,6 @@
 // 炼丹模态：配方 + 草药库存 + 炼制（草药品质与炼丹水平影响丹药品质，耗时一月）
 import { h, icon } from '../core/component.js';
 import { Modal } from '../ui/Modal.js';
-import { EmptyState } from '../ui/controls.js';
 import { CONFIG } from '../core/config.js';
 import { RECIPES, HERBS, getAlchemyLevel, calcSuccessRate } from '../core/alchemy.js';
 import { TIME_COST } from '../core/time.js';
