@@ -2,6 +2,7 @@
 // 本文件导出方法集，由 store.js 混入 GameStore.prototype（方法内 this 即 store 实例）
 import { CONFIG } from '../config.js';
 import { splitState, mergeDomains } from '../data.js';
+import { getHerbItem, herbPrice } from '../mapItems.js';
 
 export const persistenceDomain = {
   /* ---------- 存档序列化（按域分文件） ---------- */
@@ -38,8 +39,27 @@ export const persistenceDomain = {
     merged.combat = null;
     merged.busy = false;
     merged.event = null; // 重新推进剧情
+    merged.explore = null; // 探索进度不入存档，重新进入时重置（V2.4）
     if (!Array.isArray(merged.relations)) merged.relations = [];
     if (!Array.isArray(merged.history)) merged.history = [];
+    // V2.4 迁移：旧存档的独立草药库存并入背包（可堆叠草药物品）
+    if (merged.herbs && Object.values(merged.herbs).some(n => n > 0)) {
+      const items = [...(merged.items ?? [])];
+      for (const [key, n] of Object.entries(merged.herbs)) {
+        if (!n) continue;
+        const herb = getHerbItem(key);
+        if (!herb) continue;
+        const exist = items.find(i => i.herbKey === key);
+        if (exist) exist.count = (exist.count ?? 1) + n;
+        else items.push({
+          id: `it-mig-${key}`, name: herb.name, desc: herb.desc, effect: herb.effect,
+          rarity: herb.rarity, category: 'herb', day: 1, usable: false,
+          effects: {}, grant: null, count: n, price: herbPrice(key), herbKey: key
+        });
+      }
+      merged.items = items;
+      merged.herbs = {};
+    }
     this.state = merged;
     this._emit(['*']);
     return true;

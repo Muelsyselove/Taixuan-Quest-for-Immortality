@@ -399,8 +399,8 @@ const { _electron: electron } = require('playwright-core');
   await win.locator('.cult-modal .modal-close').click();
   await win.waitForTimeout(200);
 
-  // 14.5 炼丹：注入草药 → 炼丹房 → 必成注入炼制（丹药入包 + 经验 + 耗时1月）
-  await win.evaluate(() => window.__game.store.set({ herbs: { jinling: 2, xinyi: 2 } }));
+  // 14.5 炼丹：注入背包草药（V2.4 起草药入背包堆叠） → 炼丹房 → 必成注入炼制（丹药入包 + 经验 + 耗时1月）
+  await win.evaluate(() => { window.__game.store.addHerb('jinling', 2); window.__game.store.addHerb('xinyi', 2); });
   await win.locator('.fac-btn.leave').click();
   await win.waitForSelector('.region-map-panel', { timeout: 6000 });
   await win.locator('.region-node[data-id="qy_liandan"]').click();
@@ -417,7 +417,7 @@ const { _electron: electron } = require('playwright-core');
     return {
       pillGained: s.items.length === ib + 1,
       expGained: s.alchemyExp > 0,
-      herbConsumed: (s.herbs.jinling ?? 0) === 1,
+      herbConsumed: (window.__game.store.herbCounts().jinling ?? 0) === 1,
       time: `${s.mapTime.year}年${s.mapTime.month}月`
     };
   }, itemsBefore);
@@ -484,22 +484,22 @@ const { _electron: electron } = require('playwright-core');
     return r;
   });
 
-  // 14.9 地图模式存档往返：模式/宗门/位置/时间/草药/财富全量恢复
+  // 14.9 地图模式存档往返：模式/宗门/位置/时间/背包草药/财富全量恢复
   out.mapMode.saveRound = await win.evaluate(async () => {
     const g = window.__game; const st = g.store;
     const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const snap = {
       mode: st.state.mode, sect: st.state.sect,
       loc: { ...st.state.mapLocation }, time: { ...st.state.mapTime },
-      herbs: { ...st.state.herbs }, silver: st.state.wealth.silver
+      herbs: st.herbCounts(), silver: st.state.wealth.silver
     };
     await g.saves.save('mapcheck');
-    st.set({ mapLocation: { world: 'fentian', region: 'fentian', scene: null }, herbs: {}, wealth: { silver: 1, spirit: 0 } });
+    st.set({ mapLocation: { world: 'fentian', region: 'fentian', scene: null }, items: [], wealth: { silver: 1, spirit: 0 } });
     const ok = await g.saves.load('mapcheck');
     const back = {
       mode: st.state.mode, sect: st.state.sect,
       loc: { ...st.state.mapLocation }, time: { ...st.state.mapTime },
-      herbs: { ...st.state.herbs }, silver: st.state.wealth.silver
+      herbs: st.herbCounts(), silver: st.state.wealth.silver
     };
     await g.saves.remove('mapcheck');
     return {

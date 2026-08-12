@@ -5,7 +5,6 @@
 //   region 设且 scene 空  → 主视图 = 二级地图（区域/宗门内部）
 //   scene 设              → 主视图 = 场景绘卷
 import { Component, h, icon } from '../core/component.js';
-import { CONFIG } from '../core/config.js';
 import { SECTS, SCENES, NPCS } from '../core/mapData.js';
 import { CharacterPanel } from '../components/CharacterPanel.js';
 import { WorldMap } from '../components/WorldMap.js';
@@ -19,6 +18,8 @@ import { SectModal } from '../components/SectModal.js';
 import { CultivateModal } from '../components/CultivateModal.js';
 import { AlchemyModal } from '../components/AlchemyModal.js';
 import { ShopModal } from '../components/ShopModal.js';
+import { StockMarketModal } from '../components/StockMarketModal.js';
+import { ExploreGrid } from '../components/ExploreGrid.js';
 import { BreakthroughModal } from '../components/BreakthroughModal.js';
 import { SettingsModal } from '../components/SettingsModal.js';
 import { InventoryModal } from '../components/InventoryModal.js';
@@ -58,8 +59,9 @@ export class MapScreen extends Component {
           h('span', { class: 'gt-char' }, `${this.props.char?.name ?? ''} · 地图模式`)
         ),
         h('div', { class: 'gt-right' },
+          tool('yinshi', '银市', 'talisman', () => this._openRemoteStock()),
           tool('saves', '存档', 'scroll', () => this._openSaves()),
-          tool('relations', '关系', 'heart', () => new RelationsModal(this.store).mount(document.body)),
+          tool('relations', '关系', 'heart', () => new RelationsModal(this.store, { engine: this.props.engine }).mount(document.body)),
           tool('usage', '算盘', 'spark', () => new UsageModal(this.store, { engine: this.props.engine }).mount(document.body)),
           tool('ai', 'AI', 'talisman', () => new SettingsModal(this.store, { engine: this.props.engine }).mount(document.body))
         )
@@ -103,8 +105,9 @@ export class MapScreen extends Component {
     this._renderMini();
     this._renderDead();
 
-    // 外部状态变化（读档/陨落）时同步视图
+    // 外部状态变化（读档/陨落/进出探索）时同步视图
     this._unsubLoc = store.subscribe(['mapLocation'], () => this._renderMain(true));
+    this._unsubExplore = store.subscribe(['explore'], () => this._renderMain(false));
     this._unsubDead = store.subscribe(['dead'], () => this._renderDead());
   }
 
@@ -117,29 +120,44 @@ export class MapScreen extends Component {
     return 'world';
   }
 
+  /** 当前主视图种类：场景级若正探索格子地图则为 explore */
+  _viewOf() {
+    if (this._levelOf() === 'scene' && this.store.state.explore) return 'explore';
+    return this._levelOf();
+  }
+
   /** 主视图渲染（animate=true 时走过场动画） */
   _renderMain(animate) {
     if (this._transitioning) return; // 过场结束时会按最新状态补一次渲染，不会丢导航
-    if (this._levelOf() === this._level && this._mainKid) { this._renderMini(); return; } // 同级移动仅刷新侧栏
+    if (this._viewOf() === this._level && this._mainKid) { this._renderMini(); return; } // 同级移动仅刷新侧栏
 
     const swap = () => {
       // 换景时刻重读最新状态，避免用过场开始前捕获的旧位置渲染
-      const level = this._levelOf();
+      const view = this._viewOf();
       const loc = this.store.state.mapLocation ?? {};
       this._mainKid?.destroy();
       this._mainKid = null;
       this.mainEl.innerHTML = '';
-      this._level = level;
+      this._level = view;
 
-      if (level === 'world') {
+      if (view === 'world') {
         this._mainKid = new WorldMap(this.store, {
           onEnterRegion: (id) => this._enterRegion(id)
         });
-      } else if (level === 'region') {
+      } else if (view === 'region') {
         this._mainKid = new RegionMap(this.store, {
           regionId: loc.region,
           onEnterScene: (sceneId) => this._enterScene(sceneId),
           onBackWorld: () => this._backToWorld()
+        });
+      } else if (view === 'explore') {
+        this._mainKid = new ExploreGrid(this.store, {
+          sceneId: this.store.state.explore.sceneId,
+          combat: this.props.combat,
+          audio: this.props.audio,
+          onToast: (t) => this._toast(t),
+          onMerchant: () => new ShopModal(this.store, { merchant: true }).mount(document.body),
+          onExit: () => this._renderMain(true)
         });
       } else {
         this._mainKid = new SceneView(this.store, {
@@ -151,7 +169,7 @@ export class MapScreen extends Component {
         });
       }
       this._mainKid.mount(this.mainEl);
-      this.mainEl.dataset.level = level; // CSS 按层级给不同入场动画
+      this.mainEl.dataset.level = view; // CSS 按层级给不同入场动画
       this._renderMini();
     };
 
@@ -168,7 +186,7 @@ export class MapScreen extends Component {
         this.veilEl.classList.remove('off');
         this._transitioning = false;
         // 过场期间被拦截的导航：状态与视图不一致时按最新状态补渲染
-        if (this._levelOf() !== this._level) this._renderMain(true);
+        if (this._viewOf() !== this._level) this._renderMain(true);
       }, 420);
     }, 260);
   }
@@ -254,8 +272,16 @@ export class MapScreen extends Component {
       }
       case 'leitai': this._duel(); break;
       case 'fangshi':
+        // 坊市五铺并列：综合商店 / 草药房 / 丹药房 / 法宝阁 / 功法楼
+        new ShopModal(store, {}).mount(document.body);
+        break;
       case 'danfang':
-        new ShopModal(store, { sceneId: loc.scene }).mount(document.body);
+        // 药铺：草药房 + 丹药房
+        new ShopModal(store, { shops: ['herb', 'dan'], shop: 'herb' }).mount(document.body);
+        break;
+      case 'yinshi':
+        // 银市交易行（就地操盘）
+        new StockMarketModal(store, {}).mount(document.body);
         break;
       case 'qiju':
         store.mapRest();
@@ -286,23 +312,23 @@ export class MapScreen extends Component {
     this.props.combat.start({ enemy, playerFirst: true, spar: true });
   }
 
-  /** 野外探寻：采药为主，凶险之地或有妖邪拦路 */
+  /** 野外探寻：进入 10×10 探索格子地图（每步 2 月，离开重置） */
   _gather() {
     const store = this.store;
     const loc = store.state.mapLocation ?? {};
-    const scene = SCENES[loc.scene];
-    if (scene?.bg === 'cliff_danger' && Math.random() < 0.35) {
-      // 断魂崖类凶地：遭遇战（非切磋）
-      const s = store.state;
-      const scale = 1 + s.realmIndex * 0.6;
-      const base = CONFIG.fallback.enemies[Math.floor(Math.random() * CONFIG.fallback.enemies.length)];
-      const enemy = { ...base, hp: Math.round(base.hp * scale), atk: Math.round(base.atk * scale), pdef: Math.round(base.pdef * scale), mdef: Math.round(base.mdef * scale) };
-      this.props.audio?.hit?.();
-      this.props.combat.start({ enemy, playerFirst: Math.random() < 0.5 });
-      return;
+    if (!loc.scene) return;
+    store.enterExplore(loc.scene); // explore 订阅会切换主视图为格子地图
+    this.props.mist?.pulse?.();
+  }
+
+  /** 远程银市：持天慧符方可随时操盘，否则需亲赴银市 */
+  _openRemoteStock() {
+    const store = this.store;
+    if (store.canRemoteStock()) {
+      new StockMarketModal(store, { remote: true }).mount(document.body);
+    } else {
+      this._toast('需持【天慧符】方可远程操盘银市——或亲赴银市交易行');
     }
-    const r = store.mapGatherHerbs();
-    if (!r.died && r.herbs?.length) this._toast(`采得 ${r.herbs.join('、')}`);
   }
 
   /** NPC 对话：AI 寒暄 + 固定话题 + 自由攀谈 */
@@ -330,7 +356,12 @@ export class MapScreen extends Component {
         break;
       }
       case 'alchemy': new AlchemyModal(store).mount(document.body); break;
-      case 'shop': new ShopModal(store, { sceneId: loc.scene }).mount(document.body); break;
+      case 'shop':
+        // 按 NPC 功能开店：药铺只营草药丹药，坊市五铺齐备
+        if (npc.function === 'danfang') new ShopModal(store, { shops: ['herb', 'dan'], shop: 'herb' }).mount(document.body);
+        else new ShopModal(store, {}).mount(document.body);
+        break;
+      case 'yinshi': new StockMarketModal(store, {}).mount(document.body); break;
       case 'duel': this._npcDialog?._close(); this._duel(); break;
       case 'train': {
         const r = store.mapTrain();
@@ -410,6 +441,7 @@ export class MapScreen extends Component {
 
   destroy() {
     this._unsubLoc?.();
+    this._unsubExplore?.();
     this._unsubDead?.();
     this._mainKid?.destroy();
     this._miniKid?.destroy();

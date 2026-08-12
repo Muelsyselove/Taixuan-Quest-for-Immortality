@@ -41,5 +41,32 @@ export const relationDomain = {
     this.set({ relations: list });
     this.pushHistory(`结识【${fresh.name}】——${fresh.identity}，${fresh.relation}`, 'relation');
     return fresh;
+  },
+
+  /* ---------- V2.4：自由对话好感（每隔 3 个月可增一次） ---------- */
+
+  /** 当前地图时间折合总月数 */
+  _nowMonths() {
+    const t = this.state.mapTime ?? { year: 1, month: 1 };
+    return t.year * 12 + t.month;
+  },
+
+  /** 该 NPC 的自由对话好感窗口是否已到（距上次 ≥3 个月） */
+  canChatAffinity(name) {
+    if (this.state.mode !== 'map') return false;
+    if (!this.state.relations.some(r => r.name === name)) return false;
+    const last = this.state.relationChatAt?.[name];
+    return last == null || this._nowMonths() - last >= 3;
+  },
+
+  /**
+   * 自由对话涨好感：仅限自由对话触发；每位 NPC 每 3 个月限一次
+   * @returns {{gained:boolean}}
+   */
+  tryChatAffinity(name) {
+    if (!this.canChatAffinity(name)) return { gained: false };
+    this.upsertRelation({ name, delta: 2 });
+    this.set({ relationChatAt: { ...(this.state.relationChatAt ?? {}), [name]: this._nowMonths() } });
+    return { gained: true };
   }
 };

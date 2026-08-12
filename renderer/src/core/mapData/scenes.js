@@ -146,5 +146,14 @@ export const SCENES = {
     npcs: [],
     facilities: [],
     bg: 'cliff_danger'
+  },
+
+  /* ---------- 银市场景（V2.4） ---------- */
+  ys_jiaoyi: {
+    id: 'ys_jiaoyi', name: '银市交易行', type: 'market',
+    desc: '太玄大陆最大的银股交易行，报价声此起彼伏，一日之间或贫或富。',
+    npcs: ['ys_jinsuanpan'],
+    facilities: ['yinshi'],
+    bg: 'market_gold'
   }
 };

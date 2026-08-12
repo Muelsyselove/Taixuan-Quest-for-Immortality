@@ -453,3 +453,213 @@
 .bk-pill b { font-size: 13px; color: var(--gold-hi); letter-spacing: 1px; }
 .bk-pill i { font-style: normal; font-size: 11.5px; color: var(--text-dim); margin-left: auto; }
 .bk-notice { min-height: 6px; }
+
+/* ============================================================
+   地图模式 V2.4：探索格阵 / 银市 / 坊市分号 / 远程传讯 / 场景贴图
+   ============================================================ */
+
+/* ---------- 探索格阵（10×10 迷雾探寻） ---------- */
+.map-main-stage[data-level="explore"] > .panel { animation: view-explore-in .7s cubic-bezier(.22,1,.36,1) both; }
+@keyframes view-explore-in {
+  from { opacity: 0; transform: scale(.97); filter: blur(5px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+.explore-panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.ex-head { flex: none; padding: 12px 18px 0; }
+.ex-title {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--font-display); font-size: 17px; letter-spacing: 3px; color: var(--gold-hi);
+}
+.ex-title .icon { color: var(--jade); }
+.ex-done-tag {
+  font-family: var(--font-body); font-size: 10.5px; letter-spacing: 2px;
+  color: var(--jade); border: 1px solid rgba(127,179,168,.45); border-radius: 99px; padding: 1px 9px;
+}
+.ex-sub { margin-top: 4px; font-size: 11.5px; color: var(--text-dim); letter-spacing: 1px; }
+.ex-stage {
+  flex: 1; min-height: 0; position: relative; overflow: hidden;
+  display: grid; place-items: center; padding: 12px 16px;
+}
+.ex-mist {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 30% at 20% 80%, rgba(127,179,168,.10), transparent 70%),
+    radial-gradient(ellipse 50% 26% at 80% 20%, rgba(216,178,92,.07), transparent 70%);
+  animation: mist-drift 12s ease-in-out infinite alternate;
+}
+.ex-grid {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px;
+  width: min(100%, 560px, 56vh);
+}
+.ex-cell {
+  aspect-ratio: 1; padding: 0;
+  display: grid; place-items: center;
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 6px;
+  font-family: var(--font-body);
+  cursor: default; transition: transform .22s, background .22s, border-color .22s, box-shadow .22s;
+}
+.ex-cell.t-empty    { background: rgba(154,147,127,.06); }
+.ex-cell.t-battle   { background: rgba(227,93,106,.09); }
+.ex-cell.t-gather   { background: rgba(111,207,127,.08); }
+.ex-cell.t-qiyu     { background: rgba(176,127,232,.09); }
+.ex-cell.t-merchant { background: rgba(232,163,79,.10); }
+.ex-cell.t-exit     { background: rgba(244,217,140,.10); }
+/* 迷雾格须盖过类型底色，不泄露格子内容 */
+.ex-cell.fog { background: rgba(255,255,255,.028); border-style: dashed; border-color: var(--line); }
+.ex-fog-dot { color: var(--text-dim); opacity: .4; font-size: 11px; }
+.ex-cell.here { border-color: var(--gold-hi); box-shadow: 0 0 14px rgba(216,178,92,.45); }
+.ex-player {
+  width: 62%; height: 62%; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11px; color: var(--ink-0); letter-spacing: 0;
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+  box-shadow: 0 0 10px rgba(216,178,92,.5);
+}
+.ex-cell.reachable { cursor: pointer; border-color: var(--line-strong); }
+.ex-cell.reachable:hover { background: rgba(216,178,92,.14); transform: scale(1.08); }
+.ex-cell.cleared { opacity: .55; }
+.ex-cell.exit-cell { border-color: rgba(244,217,140,.55); box-shadow: 0 0 10px rgba(244,217,140,.18); }
+.ex-cell-ico { font-style: normal; font-size: 14px; line-height: 1; }
+.ex-cell-ico.t-empty    { color: #9a937f; }
+.ex-cell-ico.t-battle   { color: #e35d6a; }
+.ex-cell-ico.t-gather   { color: #6fcf7f; }
+.ex-cell-ico.t-qiyu     { color: #b07fe8; }
+.ex-cell-ico.t-merchant { color: #e8a34f; }
+.ex-cell-ico.t-exit     { color: #f4d98c; }
+.ex-tip {
+  flex: none; min-height: 32px; padding: 6px 18px 0;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 12.5px; color: var(--text-dim); letter-spacing: 1px;
+}
+.ex-tip-done { color: var(--jade); }
+.ex-trade-btn { flex: none; }
+.ex-legend { flex: none; display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 18px 0; }
+.ex-legend-item { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+.ex-legend-item i { font-style: normal; }
+.ex-actions { flex: none; display: flex; justify-content: center; padding: 12px 18px 14px; }
+
+/* ---------- 银市 ---------- */
+.modal.stock-modal {
+  width: 640px; max-width: 94vw;
+  max-height: 86vh; display: flex; flex-direction: column;
+}
+.stock-wrap { display: flex; flex-direction: column; gap: 12px; }
+.stock-wealth { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; }
+.stock-frozen-tip { margin-left: auto; font-size: 10.5px; color: var(--text-dim); opacity: .8; letter-spacing: 1px; }
+.stock-remote-tip {
+  font-size: 12px; color: var(--jade); letter-spacing: 1px; line-height: 1.7;
+  background: rgba(127,179,168,.08); border: 1px solid rgba(127,179,168,.3);
+  border-radius: 9px; padding: 8px 12px;
+}
+.stock-global-rule {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12.5px; color: var(--gold-hi); letter-spacing: 1px;
+}
+.stock-global-rule .icon { color: var(--gold); }
+.stock-global-rule .ms-ex-btn { margin-left: auto; }
+.ms-ex-btn.on { color: var(--jade); border-color: rgba(127,179,168,.5); background: rgba(127,179,168,.1); }
+.stock-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+.stock-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 13px;
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px;
+  transition: border-color .25s;
+}
+.stock-item:hover { border-color: var(--line-strong); }
+.stock-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.stock-name { display: flex; align-items: baseline; gap: 10px; }
+.stock-name b { font-size: 13.5px; color: var(--gold-hi); letter-spacing: 1px; }
+.stock-name i { font-style: normal; font-size: 11px; color: var(--text-dim); letter-spacing: 1px; }
+.stock-quote { display: flex; align-items: center; gap: 10px; }
+.stock-price { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; min-width: 42px; }
+.stock-chg { font-size: 11px; font-variant-numeric: tabular-nums; }
+.stock-chg.up   { color: var(--danger); }  /* 中式行情：红涨 */
+.stock-chg.down { color: var(--jade); }    /* 绿跌 */
+.stock-spark { flex: none; width: 96px; height: 30px; margin-left: auto; }
+.stock-spark.up polyline   { stroke: var(--danger); }
+.stock-spark.down polyline { stroke: var(--jade); }
+.stock-held { font-size: 11px; color: var(--gold); letter-spacing: 1px; }
+.stock-ops { flex: none; display: flex; align-items: center; gap: 7px; }
+.stock-qty { width: 60px; padding: 6px 8px; text-align: center; }
+.stock-rule-host:empty { display: none; }
+.stock-rule-editor {
+  display: flex; flex-direction: column; gap: 10px;
+  background: rgba(216,178,92,.05); border: 1px solid var(--line-strong); border-radius: 10px;
+  padding: 12px 14px;
+  animation: opt-in .35s both;
+}
+.stock-rule-title { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gold-hi); letter-spacing: 1px; }
+.stock-rule-title .icon { color: var(--gold); }
+.stock-rule-tip { margin-left: auto; font-size: 10.5px; color: var(--text-dim); letter-spacing: 1px; }
+.stock-rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.stock-rule-field { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-dim); letter-spacing: 1px; }
+.stock-rule-field span { flex: none; width: 58px; }
+.stock-rule-inp { flex: 1; min-width: 0; padding: 6px 10px; }
+.stock-rule-acts { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ---------- 坊市分号（草药/丹药/法宝/功法/综合） ---------- */
+.shop-types { display: flex; flex-wrap: wrap; gap: 7px; }
+.shop-type {
+  padding: 6px 15px;
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 99px;
+  color: var(--text-dim); font-family: var(--font-body); font-size: 12px; letter-spacing: 2px;
+  cursor: pointer; transition: all .25s;
+}
+.shop-type:hover { color: var(--gold-hi); border-color: var(--line-strong); }
+.shop-type.active {
+  color: var(--ink-0); font-weight: 600;
+  background: linear-gradient(135deg, var(--gold-hi), var(--gold));
+  border-color: transparent;
+  box-shadow: 0 0 14px rgba(216,178,92,.3);
+}
+.shop-merchant-tip {
+  font-size: 12px; color: #e8a34f; letter-spacing: 1px; line-height: 1.7;
+  background: rgba(232,163,79,.08); border: 1px solid rgba(232,163,79,.3);
+  border-radius: 9px; padding: 8px 12px;
+}
+.shop-unique-tag, .shop-rare-tag, .shop-owned-tag {
+  font-style: normal; font-size: 10px; letter-spacing: 1px;
+  border-radius: 5px; padding: 1px 7px; margin-left: 7px;
+}
+.shop-unique-tag { color: var(--ink-0); background: linear-gradient(135deg, var(--gold-hi), var(--gold)); }
+.shop-rare-tag   { color: #e8a34f; border: 1px solid rgba(232,163,79,.5); }
+.shop-owned-tag  { color: var(--jade); border: 1px solid rgba(127,179,168,.4); }
+.shop-item.sold-out { opacity: .5; }
+.shop-buy-group { flex: none; display: flex; gap: 6px; }
+
+/* ---------- NPC 远程传讯 / 好感窗口（天慧符） ---------- */
+.npc-remote-tag {
+  font-family: var(--font-body); font-size: 10.5px; letter-spacing: 2px;
+  color: #b07fe8; border: 1px solid rgba(176,127,232,.45); border-radius: 99px; padding: 1px 9px;
+}
+.npc-tag.chat-open { color: var(--jade); border-color: rgba(127,179,168,.5); background: rgba(127,179,168,.08); }
+.npc-tag.chat-cool { opacity: .55; }
+
+/* ---------- 关系谱 · 天慧通灵 ---------- */
+.rel-tianhui { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.rel-tianhui:empty { display: none; }
+.rel-tianhui-row {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--ink-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 10px 14px;
+}
+.rel-tianhui-row .icon { color: var(--gold); }
+.rel-tianhui-row.dim { opacity: .75; }
+.rel-tianhui-label { font-size: 12.5px; color: var(--gold-hi); letter-spacing: 1px; }
+.rel-tianhui-tip { margin-left: auto; font-size: 11px; color: var(--text-dim); letter-spacing: 1px; text-align: right; }
+.rel-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rel-chat-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: 1px solid rgba(176,127,232,.4); border-radius: 7px;
+  color: #b07fe8; font-family: var(--font-body); font-size: 11px; letter-spacing: 1px;
+  padding: 3px 10px; cursor: pointer; transition: all .25s;
+}
+.rel-chat-btn:hover { background: rgba(176,127,232,.12); border-color: rgba(176,127,232,.65); }
+
+/* ---------- 场景贴图（V2.4 精美绘卷） ---------- */
+.scene-canvas.textured { background-color: var(--ink-1); }
+.scene-canvas.textured .scene-glyph { color: rgba(232,226,210,.09); }
+.scene-canvas.textured .scene-title { background: linear-gradient(180deg, transparent, rgba(7,9,13,.88)); }

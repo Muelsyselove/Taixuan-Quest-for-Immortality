@@ -1,4 +1,6 @@
 // NPC 对话面板：AI 打招呼（首句）+ 固定话题（功能快捷）+ 自由输入
+// V2.4：自由对话好感——与已结识 NPC 自由攀谈，每隔 3 个月好感 +2（仅自由对话）；
+//       持天慧符可远程传讯（仅对话，无实际功能）。
 import { Component, h, icon } from '../core/component.js';
 import { FACILITY_TYPES } from '../core/mapData.js';
 
@@ -12,30 +14,35 @@ const FUNCTION_TOPICS = {
   liangong: [{ key: 'train', label: '演武修行' }],
   cangshu:  [{ key: 'study', label: '研读典籍' }],
   biguan:   [{ key: 'cultivate', label: '闭关修炼' }],
-  qiju:     [{ key: 'rest', label: '稍作休息' }]
+  qiju:     [{ key: 'rest', label: '稍作休息' }],
+  yinshi:   [{ key: 'yinshi', label: '银市行情' }]
 };
 
 export class NpcDialog extends Component {
   constructor(store, props) {
     super(store, props);
-    // props: { npc, engine, onAction(actionKey, npc), onClose() }
-    this.log = []; // { from:'npc'|'player', text }
+    // props: { npc, engine, remote?: boolean, onAction(actionKey, npc), onClose() }
+    this.log = []; // { from:'npc'|'player'|'sys', text }
     this.thinking = false;
   }
 
   render() {
     const npc = this.props.npc;
+    const remote = !!this.props.remote;
     this.logEl = h('div', { class: 'npc-log' });
+    this.affinityEl = h('span', { class: 'npc-affinity' }, `好感 ${this._affinity()}`);
     this.inputEl = h('input', {
       class: 'npc-input', type: 'text', maxlength: 60,
-      placeholder: '随意攀谈……（对话不提供实质性奖励）'
+      placeholder: remote ? '天慧传讯，随意攀谈……' : '随意攀谈……（每 3 个月自由对话可增好感）'
     });
     this.inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') this._send();
     });
 
     const fn = npc.function ? FACILITY_TYPES[npc.function] : null;
-    const topics = (FUNCTION_TOPICS[npc.function] ?? []);
+    // 远程传讯仅限对话，不提供实际功能话题
+    const topics = remote ? [] : (FUNCTION_TOPICS[npc.function] ?? []);
+    const chatOpen = this.store.canChatAffinity?.(npc.name);
 
     this.el = h('div', { class: 'npc-mask', onclick: (e) => { if (e.target === this.el) this._close(); } },
       h('div', { class: 'npc-dialog panel' },
@@ -43,14 +50,19 @@ export class NpcDialog extends Component {
           h('span', { class: `npc-seal lg ${npc.gender}` }, npc.name[0]),
           h('div', { class: 'npc-head-text' },
             h('div', { class: 'npc-name' }, npc.name,
-              h('span', { class: 'npc-affinity' }, `好感 ${this._affinity()}`)),
-            h('div', { class: 'npc-identity' }, `${npc.identity} · ${npc.gender === 'female' ? '女' : '男'}${fn ? ` · ${fn.label}` : ''}`)
+              remote ? h('span', { class: 'npc-remote-tag' }, '远程传讯') : null,
+              this.affinityEl),
+            h('div', { class: 'npc-identity' }, `${npc.identity} · ${npc.gender === 'female' ? '女' : '男'}${fn && !remote ? ` · ${fn.label}` : ''}`)
           ),
           h('button', { class: 'modal-close', onclick: () => this._close() }, '×')
         ),
         h('div', { class: 'npc-persona' },
           h('span', { class: 'npc-tag', title: '性格' }, npc.personality),
-          h('span', { class: 'npc-tag', title: '喜好' }, `好：${npc.likes}`)
+          h('span', { class: 'npc-tag', title: '喜好' }, `好：${npc.likes}`),
+          this.store.state.mode === 'map' ? h('span', {
+            class: `npc-tag ${chatOpen ? 'chat-open' : 'chat-cool'}`,
+            title: '每隔 3 个月，自由对话可增好感（仅自由对话）'
+          }, chatOpen ? '寒暄可增好感' : '好感窗口未至') : null
         ),
         this.logEl,
         topics.length ? h('div', { class: 'npc-topics' },
@@ -78,7 +90,10 @@ export class NpcDialog extends Component {
     // AI 生成见面首句（本地兜底见 engine._fallbackGreet）
     this._push('npc', '……');
     this.thinking = true;
-    this.props.engine.npcGreet(npc).then(text => {
+    const greet = this.props.remote && this.props.engine.npcRemoteGreet
+      ? this.props.engine.npcRemoteGreet(npc)
+      : this.props.engine.npcGreet(npc);
+    greet.then(text => {
       this.log[0].text = text;
       this.thinking = false;
       this._renderLog();
@@ -99,7 +114,7 @@ export class NpcDialog extends Component {
     this.logEl.innerHTML = '';
     for (const m of this.log.slice(-30)) {
       this.logEl.appendChild(h('div', { class: `npc-line from-${m.from}` },
-        m.from === 'npc' ? h('b', null, `${this.props.npc.name}：`) : h('b', null, '你：'),
+        m.from === 'npc' ? h('b', null, `${this.props.npc.name}：`) : m.from === 'player' ? h('b', null, '你：') : null,
         h('span', { class: m.text === '……' ? 'npc-wait' : null }, m.text)
       ));
     }
@@ -116,6 +131,12 @@ export class NpcDialog extends Component {
     const reply = await this.props.engine.npcChat(this.props.npc, text, this.log);
     this.thinking = false;
     this.log[this.log.length - 1].text = reply;
+    // V2.4：自由对话好感（每 3 个月限一次，仅自由对话触发）
+    const g = this.store.tryChatAffinity?.(this.props.npc.name);
+    if (g?.gained) {
+      this.log.push({ from: 'sys', text: `※ 寒暄问暖，情谊渐笃——【${this.props.npc.name}】好感 +2` });
+      this.affinityEl.textContent = `好感 ${this._affinity()}`;
+    }
     this._renderLog();
   }
 
