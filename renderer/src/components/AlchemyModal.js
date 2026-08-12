@@ -33,6 +33,7 @@ export class AlchemyModal extends Modal {
 
   _refresh() {
     const s = this.store.state;
+    const herbCounts = this.store.herbCounts(); // V2.4 起草药存于背包，库存视图按 herbKey 聚合
     // 等级与经验
     const lv = getAlchemyLevel(s.alchemyExp);
     const pct = lv.nextExpNeeded === Infinity ? 100
@@ -54,7 +55,7 @@ export class AlchemyModal extends Modal {
 
     // 草药
     this.herbsEl.innerHTML = '';
-    const owned = Object.entries(s.herbs).filter(([, n]) => n > 0);
+    const owned = Object.entries(herbCounts).filter(([, n]) => n > 0);
     if (!owned.length) {
       this.herbsEl.appendChild(h('div', { class: 'alch-herb-empty' }, '暂无草药——可往野外场景「探寻」采得'));
     } else {
@@ -72,7 +73,7 @@ export class AlchemyModal extends Modal {
     // 丹方
     this.listEl.innerHTML = '';
     for (const [key, recipe] of Object.entries(RECIPES)) {
-      const canMake = recipe.herbs.every(hk => (s.herbs[hk] ?? 0) > 0);
+      const canMake = recipe.herbs.every(hk => (herbCounts[hk] ?? 0) > 0);
       const herbQuality = recipe.herbs.reduce((sum, hk) => sum + (HERBS[hk]?.value ?? 0), 0) / recipe.herbs.length;
       const rate = calcSuccessRate(s.alchemyLevel, herbQuality);
       const rarity = CONFIG.rarities.find(r => r.key === recipe.rarity);
