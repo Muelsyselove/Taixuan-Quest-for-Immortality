@@ -24,14 +24,17 @@ export const WORLD_MAP = {
     // 野外节点
     { id: 'wild_fangshi', name: '散修坊市', x: 500, y: 400, kind: 'city', region: 'central' },
     { id: 'wild_mishi',   name: '迷雾森林', x: 100, y: 300, kind: 'wild', region: 'west' },
-    { id: 'wild_duanya',  name: '断魂崖',   x: 900, y: 350, kind: 'danger', region: 'east' }
+    { id: 'wild_duanya',  name: '断魂崖',   x: 900, y: 350, kind: 'danger', region: 'east' },
+    // 银市（V2.4）：银股交易所在地
+    { id: 'yinshi',       name: '银市',     x: 660, y: 480, kind: 'city', region: 'central' }
   ],
   edges: [
     ['qingyun', 'tianjian'], ['qingyun', 'wild_fangshi'], ['qingyun', 'miaomu'],
     ['tianjian', 'leishen'], ['leishen', 'youming'], ['youming', 'wild_duanya'],
     ['wild_duanya', 'fentian'], ['fentian', 'wild_fangshi'], ['wild_fangshi', 'wanshou'],
     ['wanshou', 'wild_mishi'], ['wild_mishi', 'xuanbing'], ['xuanbing', 'miaomu'],
-    ['wanshou', 'youming']
+    ['wanshou', 'youming'],
+    ['wild_fangshi', 'yinshi'], ['yinshi', 'fentian']
   ]
 };
 
@@ -132,6 +135,14 @@ export const REGION_MAPS = {
     scenes: ['wild_duanya'],
     positions: {
       wild_duanya: { x: 400, y: 350 }
+    }
+  },
+  yinshi: {
+    id: 'yinshi', name: '银市', type: 'city',
+    desc: '太玄大陆最大的银股交易之地，商贾云集，一日千金。',
+    scenes: ['ys_jiaoyi'],
+    positions: {
+      ys_jiaoyi: { x: 400, y: 350 }
     }
   }
 };

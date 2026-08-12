@@ -66,10 +66,11 @@ export function formatLifespan(time, realmIndex) {
 
 // 行为消耗时间（月）
 export const TIME_COST = {
-  travel: 1,        // 赶路
+  travel: 1,        // 赶路（基数，实际按距离与行程方式浮动）
   cultivate: 1,     // 修炼（普通）
   biguan: 3,        // 闭关修炼
   alchemy: 1,       // 炼丹
   quest: 2,         // 宗门任务
-  rest: 0.5         // 休息
+  rest: 0.5,        // 休息
+  exploreStep: 2    // 探索：每进入一个格子区域
 };

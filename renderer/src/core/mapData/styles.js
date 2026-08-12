@@ -21,8 +21,9 @@ export const FACILITY_TYPES = {
   liandan:  { label: '炼丹房', icon: 'drop', desc: '炼制丹药，需消耗草药', canAlchemy: true },
   liangong: { label: '练功房', icon: 'sword', desc: '切磋演练，提升战斗技巧', canTrain: true },
   leitai:   { label: '擂台', icon: 'spark', desc: '与同门或来客切磋比试', canDuel: true },
-  fangshi:  { label: '坊市', icon: 'talisman', desc: '交易买卖，兑换货币', canTrade: true },
-  danfang:  { label: '丹房', icon: 'drop', desc: '购买丹药与草药', canBuyPill: true },
+  fangshi:  { label: '坊市', icon: 'talisman', desc: '五铺并列：综合商店/草药房/丹药房/法宝阁/功法楼', canTrade: true },
+  danfang:  { label: '药铺', icon: 'drop', desc: '草药房与丹药房，购买草药与丹药', canBuyPill: true },
   qiju:     { label: '起居', icon: 'heart', desc: '休息恢复，与道侣相处', canRest: true },
-  menpai:   { label: '宗门大殿', icon: 'yinyang', desc: '宗门事务，接取任务', canQuest: true }
+  menpai:   { label: '宗门大殿', icon: 'yinyang', desc: '宗门事务，接取任务', canQuest: true },
+  yinshi:   { label: '银市', icon: 'spark', desc: '银股交易，低买高卖', canTradeStock: true }
 };

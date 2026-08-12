@@ -2,12 +2,12 @@
 export const CONFIG = {
   gameTitle: '太玄问道',
   gameSubtitle: '一缕神魂入太玄 · 万般因果问长生',
-  version: '2.2.0',
+  version: '2.4.0',
 
   // 主界面模式入口（available=false 表示敬请期待）
   modes: [
     { key: 'dialogue', icon: 'scroll', title: '对话模式', desc: '与天道对答，以言语书写你的修仙长卷', available: true },
-    { key: 'map', icon: 'spark', title: '地图模式', desc: '自由漫游山河舆图，踏遍机缘秘境', available: true, badge: 'V2.2' },
+    { key: 'map', icon: 'spark', title: '地图模式', desc: '自由漫游山河舆图，踏遍机缘秘境', available: true, badge: 'V2.4' },
     { key: 'settings', icon: 'talisman', title: '设 置', desc: '画质 · 声音 · AI 接入 · 花费价目', available: true }
   ],
 
@@ -83,7 +83,14 @@ export const CONFIG = {
     sectAffinity: {}, // 各宗门好感度 { sectId: affinity }
     evil: false, // 是否邪修
     gender: 'male', // 性别（部分宗门有性别要求）
-    dead: null // 陨落标记 { reason:'lifespan', at:{year,month} }（地图模式寿元尽时置位）
+    dead: null, // 陨落标记 { reason:'lifespan', at:{year,month} }（地图模式寿元尽时置位）
+    // V2.4 扩展
+    stocks: null, // 银市行情 { stockId: { price, prev, history:[...] } }（懒初始化）
+    portfolio: {}, // 银股持仓 { stockId: 股数 }（已购银元卖出前不可消费）
+    tianhui: null, // 天慧符 { owned, tongling, autoGreet, rules:{ 'all'|stockId: {buyBelow,buyQty,sellAbove,sellQty} } }
+    travel: { mount: null, yujian: false }, // 行程方式：坐骑 id / 御剑飞行
+    relationChatAt: {}, // 各 NPC 上次自由对话涨好感的年月（总月数）{ name: totalMonths }
+    explore: null // 探索格子地图状态（不入存档，离开即重置）
   },
 
   // 出身预设（创建角色时可选，也允许自由填写 ≤100 字）

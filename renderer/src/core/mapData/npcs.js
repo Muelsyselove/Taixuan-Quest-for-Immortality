@@ -153,5 +153,13 @@ export const NPCS = {
     relation: '消息灵通人士', affinity: 10, function: 'fangshi',
     personality: '圆滑世故，见钱眼开', likes: '银元、秘密',
     sect: null
+  },
+
+  /* ---------- 银市（V2.4） ---------- */
+  ys_jinsuanpan: {
+    id: 'ys_jinsuanpan', name: '金算盘', identity: '银市掌柜', gender: 'male',
+    relation: '银市掌柜', affinity: 15, function: 'yinshi',
+    personality: '精明干练，唯利是图', likes: '银元、灵石、行情',
+    sect: null
   }
 };
