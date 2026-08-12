@@ -9,7 +9,7 @@ const ok = (cond, msg) => { if (!cond) { failed++; console.error('FAIL:', msg); 
 
 /* ---------- mapData 聚合入口 ---------- */
 ok(Object.keys(SECT_STYLES).length === 8, 'SECT_STYLES 应有 8 系');
-ok(Object.keys(FACILITY_TYPES).length === 9, 'FACILITY_TYPES 应有 9 类设施');
+ok(Object.keys(FACILITY_TYPES).length === 10, 'FACILITY_TYPES 应有 10 类设施');
 ok(Object.keys(SECTS).length === 8, 'SECTS 应有 8 宗门');
 ok(WORLD_MAP.nodes.length > 0 && WORLD_MAP.edges.length > 0, 'WORLD_MAP 非空');
 
