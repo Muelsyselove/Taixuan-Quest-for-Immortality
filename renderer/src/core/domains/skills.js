@@ -4,6 +4,18 @@ import { CONFIG } from '../config.js';
 import { findSkill } from '../skills.js';
 
 export const skillDomain = {
+  /** mods 数值钳制：比例类（*Pct / crit / dodge）钳制到 ±1，固定值类钳制到 ±50 */
+  _clampMods(src) {
+    const mods = {};
+    if (!src || typeof src !== 'object') return mods;
+    for (const [k, v] of Object.entries(src)) {
+      if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+      const isRatio = k.endsWith('Pct') || k === 'crit' || k === 'dodge';
+      mods[k] = isRatio ? Math.max(-1, Math.min(1, v)) : Math.max(-50, Math.min(50, v));
+    }
+    return mods;
+  },
+
   /**
    * 授予技能/天赋
    * - 名称命中预配置技能库：以库定义为准授予（忽略调用方给的数值）
@@ -54,7 +66,7 @@ export const skillDomain = {
     const list = [...this.state.talents];
     if (list.some(t => t.name === grant.name)) return;
     const entry = { name: String(grant.name), desc: String(grant.desc || '') };
-    if (grant.mods && typeof grant.mods === 'object') entry.mods = { ...grant.mods };
+    if (grant.mods && typeof grant.mods === 'object') entry.mods = this._clampMods(grant.mods);
     this.set({ talents: [...list, entry] });
     this.pushHistory(`觉醒天赋【${entry.name}】`, 'skill');
   },
@@ -95,13 +107,7 @@ export const skillDomain = {
         if (buffs.length) entry.buffs = buffs;
       }
     } else {
-      const mods = {};
-      if (def.mods && typeof def.mods === 'object') {
-        for (const [k, v] of Object.entries(def.mods)) {
-          if (typeof v === 'number' && Number.isFinite(v)) mods[k] = Math.max(-50, Math.min(50, v));
-        }
-      }
-      entry.mods = mods;
+      entry.mods = this._clampMods(def.mods);
       if (def.root && CONFIG.roots.some(r => r.key === def.root)) entry.root = def.root;
     }
 
@@ -120,7 +126,7 @@ export const skillDomain = {
       id: `bf-${Date.now()}-${++this._uid}`,
       name: String(buff.name),
       desc: String(buff.desc || ''),
-      mods: buff.mods && typeof buff.mods === 'object' ? { ...buff.mods } : {},
+      mods: this._clampMods(buff.mods),
       day: this.state.day
     };
     this.set({ buffs: [...this.state.buffs, entry] });

@@ -1,6 +1,7 @@
 // 角色设定界面：新开征程时的创建向导
 // 姓名(可编辑) / 出身(固定选项或自由填写≤100字) / 灵根(1~5) / 天赋(AI生成·0~3) / 被动(技能库·1~2) / 主动(技能库·灵根相关·1~2)
-import { Component, h, icon } from '../core/component.js';
+import { h, icon } from '../core/component.js';
+import { Modal } from '../ui/Modal.js';
 import { CONFIG } from '../core/config.js';
 import { TextInput } from '../ui/controls.js';
 import { describeActive, describePassive } from '../core/skills.js';
@@ -11,7 +12,8 @@ const SECTIONS = [
   { kind: 'active',  title: '初始主动', min: 1, max: 2, tip: '功法库中与灵根相应的术法' }
 ];
 
-export class CreationModal extends Component {
+// 布局与通用模板差异较大（cr-scroll/cr-foot），保留自有 DOM，仅继承基类的 Esc 关闭与单例守卫
+export class CreationModal extends Modal {
   constructor(store, props) {
     super(store, props);
     // props.engine: NarrativeEngine；props.onComplete(setup)
@@ -69,7 +71,8 @@ export class CreationModal extends Component {
       h('div', { class: 'modal creation-modal' },
         h('header', { class: 'panel-head' },
           icon('lotus', 16),
-          h('span', { class: 'panel-title' }, '角色设定 · 新的征程')
+          h('span', { class: 'panel-title' }, '角色设定 · 新的征程'),
+          h('button', { class: 'modal-close', title: '暂不开局', onclick: () => this.close() }, '×')
         ),
         h('div', { class: 'cr-scroll' },
           h('section', { class: 'cr-sec' },
@@ -282,6 +285,4 @@ export class CreationModal extends Component {
     });
     this.close();
   }
-
-  close() { this.destroy(); }
 }

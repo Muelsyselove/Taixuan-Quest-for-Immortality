@@ -11,6 +11,12 @@ const KIND_STYLE = {
 };
 
 export class WorldMap extends Component {
+  constructor(store, props) {
+    super(store, props);
+    // 主图与迷你图双实例共存时 SVG defs id 会冲突，故按实例加唯一后缀
+    this._uid = Math.random().toString(36).slice(2, 7);
+  }
+
   watch() { return ['mapLocation']; }
 
   render() {
@@ -29,12 +35,12 @@ export class WorldMap extends Component {
     // 渐变与滤镜
     const defs = svgEl('defs');
     defs.innerHTML = `
-      <linearGradient id="worldEdgeGrad" x1="0" y1="0" x2="1" y2="0">
+      <linearGradient id="worldEdgeGrad-${this._uid}" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0" stop-color="#d8b25c" stop-opacity=".15"/>
         <stop offset=".5" stop-color="#d8b25c" stop-opacity=".55"/>
         <stop offset="1" stop-color="#d8b25c" stop-opacity=".15"/>
       </linearGradient>
-      <filter id="worldGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <filter id="worldGlow-${this._uid}" x="-80%" y="-80%" width="260%" height="260%">
         <feGaussianBlur stdDeviation="8" result="b"/>
         <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
       </filter>`;
@@ -60,7 +66,7 @@ export class WorldMap extends Component {
       const mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2 - 30;
       edgeLayer.appendChild(svgEl('path', {
         d: `M${na.x} ${na.y} Q${mx} ${my} ${nb.x} ${nb.y}`,
-        fill: 'none', stroke: 'url(#worldEdgeGrad)', 'stroke-width': '2', 'stroke-dasharray': '6 8',
+        fill: 'none', stroke: `url(#worldEdgeGrad-${this._uid})`, 'stroke-width': '2', 'stroke-dasharray': '6 8',
         class: 'map-edge'
       }));
     }
@@ -88,7 +94,7 @@ export class WorldMap extends Component {
       }
 
       const halo = svgEl('circle', { r: '32', class: 'node-halo', fill: 'none' });
-      const body = svgEl('circle', { r: '18', class: 'node-body', filter: 'url(#worldGlow)' });
+      const body = svgEl('circle', { r: '18', class: 'node-body', filter: `url(#worldGlow-${this._uid})` });
       const glyph = svgEl('text', { class: 'node-glyph', 'text-anchor': 'middle', dy: '6' });
       glyph.textContent = style.glyph;
       const label = svgEl('text', { class: 'node-label', 'text-anchor': 'middle', dy: '42' });
@@ -110,7 +116,7 @@ export class WorldMap extends Component {
     viewport.appendChild(nodeLayer);
 
     // 当前位置标记
-    this.marker = svgEl('g', { class: 'map-marker', filter: 'url(#worldGlow)' });
+    this.marker = svgEl('g', { class: 'map-marker', filter: `url(#worldGlow-${this._uid})` });
     this.marker.innerHTML = `
       <circle r="6" fill="#f4d98c"/>
       <circle r="14" fill="none" stroke="#f4d98c" stroke-width="1.5" class="marker-ring"/>`;

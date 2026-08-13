@@ -15,6 +15,12 @@ const safeName = (name, fallback = 'x') => {
   return s || fallback;
 };
 
+// IPC 来源校验：仅接受本应用窗口（file:// 页面）发来的调用，防外部注入
+function assertTrusted(e) {
+  const url = e?.senderFrame?.url ?? '';
+  if (!url.startsWith('file://')) throw new Error('非法调用来源');
+}
+
 function ensureDir(dir) {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
@@ -65,15 +71,16 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false
+      sandbox: true
     }
   });
 
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  // 开发/自检环境附带 dev 标记，渲染进程据此挂载调试钩子
+  win.loadFile(path.join(__dirname, 'renderer', 'index.html'), app.isPackaged ? undefined : { search: 'dev=1' });
   win.once('ready-to-show', () => win.show());
 
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https:\/\//i.test(url)) shell.openExternal(url); // 仅放行 https，拦截 file:/javascript: 等协议
     return { action: 'deny' };
   });
 
@@ -83,8 +90,9 @@ function createWindow() {
 }
 
 /* ================= 设置持久化（AI / 画质 / 声音 / 单价） ================= */
-ipcMain.handle('settings:read', () => readJSON(configPath()));
-ipcMain.handle('settings:write', (_e, data) => {
+ipcMain.handle('settings:read', (e) => { assertTrusted(e); return readJSON(configPath()); });
+ipcMain.handle('settings:write', (e, data) => {
+  assertTrusted(e);
   // 与既有内容合并，避免不同模块互相覆盖字段
   const cur = readJSON(configPath(), {}) || {};
   writeJSON(configPath(), { ...cur, ...data });
@@ -92,13 +100,15 @@ ipcMain.handle('settings:write', (_e, data) => {
 });
 
 /* ================= 角色登记册 ================= */
-ipcMain.handle('chars:list', () => {
+ipcMain.handle('chars:list', (e) => {
+  assertTrusted(e);
   try {
     return readIndex().sort((a, b) => (b.last?.savedAt || b.createdAt || 0) - (a.last?.savedAt || a.createdAt || 0));
   } catch { return []; }
 });
 
-ipcMain.handle('chars:create', (_e, payload) => {
+ipcMain.handle('chars:create', (e, payload) => {
+  assertTrusted(e);
   try {
     const id = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
     const character = {
@@ -117,9 +127,10 @@ ipcMain.handle('chars:create', (_e, payload) => {
   } catch (err) { return { ok: false, error: String(err) }; }
 });
 
-ipcMain.handle('chars:read', (_e, id) => readJSON(charFile(id)));
+ipcMain.handle('chars:read', (e, id) => { assertTrusted(e); return readJSON(charFile(id)); });
 
-ipcMain.handle('chars:delete', (_e, id) => {
+ipcMain.handle('chars:delete', (e, id) => {
+  assertTrusted(e);
   try {
     fs.rmSync(charDir(id), { recursive: true, force: true });
     writeIndex(readIndex().filter(c => c.id !== id));
@@ -139,7 +150,8 @@ function updateIndexLast(id, meta) {
   }
 }
 
-ipcMain.handle('saves:list', (_e, charId) => {
+ipcMain.handle('saves:list', (e, charId) => {
+  assertTrusted(e);
   try {
     return fs.readdirSync(savesRoot(charId), { withFileTypes: true })
       .filter(d => d.isDirectory())
@@ -152,7 +164,8 @@ ipcMain.handle('saves:list', (_e, charId) => {
   } catch { return []; }
 });
 
-ipcMain.handle('saves:read', (_e, charId, slot) => {
+ipcMain.handle('saves:read', (e, charId, slot) => {
+  assertTrusted(e);
   try {
     const dir = slotDir(charId, slot);
     const meta = readJSON(path.join(dir, 'meta.json'));
@@ -169,7 +182,8 @@ ipcMain.handle('saves:read', (_e, charId, slot) => {
   } catch { return null; }
 });
 
-ipcMain.handle('saves:write', (_e, charId, slot, payload) => {
+ipcMain.handle('saves:write', (e, charId, slot, payload) => {
+  assertTrusted(e);
   try {
     const dir = ensureDir(slotDir(charId, slot));
     const files = payload?.files || {};
@@ -183,7 +197,8 @@ ipcMain.handle('saves:write', (_e, charId, slot, payload) => {
   } catch (err) { return { ok: false, error: String(err) }; }
 });
 
-ipcMain.handle('saves:delete', (_e, charId, slot) => {
+ipcMain.handle('saves:delete', (e, charId, slot) => {
+  assertTrusted(e);
   try { fs.rmSync(slotDir(charId, slot), { recursive: true, force: true }); return { ok: true }; }
   catch (err) { return { ok: false, error: String(err) }; }
 });
@@ -221,7 +236,8 @@ function migrateLegacySaves() {
 }
 
 /* ================= Token 用量统计 ================= */
-ipcMain.handle('usage:record', (_e, entry) => {
+ipcMain.handle('usage:record', (e, entry) => {
+  assertTrusted(e);
   try {
     const data = readJSON(usagePath(), { records: [] });
     data.records.push({
@@ -240,12 +256,14 @@ ipcMain.handle('usage:record', (_e, entry) => {
     return { ok: true };
   } catch (err) { return { ok: false, error: String(err) }; }
 });
-ipcMain.handle('usage:read', () => (readJSON(usagePath(), { records: [] }) || { records: [] }).records);
+ipcMain.handle('usage:read', (e) => { assertTrusted(e); return (readJSON(usagePath(), { records: [] }) || { records: [] }).records; });
 
 /* ================= AI：对话（含 usage 回传） ================= */
-ipcMain.handle('ai:chat', async (_e, payload) => {
+ipcMain.handle('ai:chat', async (e, payload) => {
+  assertTrusted(e);
   const { baseUrl, apiKey, model, messages, temperature = 0.9 } = payload || {};
   if (!baseUrl || !model) throw new Error('AI 配置不完整：缺少 baseUrl 或 model');
+  if (!/^https?:\/\//i.test(baseUrl)) throw new Error('baseUrl 仅支持 http/https 协议');
 
   const endpoint = baseUrl.replace(/\/+$/, '') + '/chat/completions';
   const controller = new AbortController();
@@ -287,8 +305,10 @@ ipcMain.handle('ai:chat', async (_e, payload) => {
 });
 
 /* ---------- AI：拉取厂商模型列表（保证模型时效性） ---------- */
-ipcMain.handle('ai:models', async (_e, { baseUrl, apiKey }) => {
+ipcMain.handle('ai:models', async (e, { baseUrl, apiKey } = {}) => {
+  assertTrusted(e);
   if (!baseUrl) return { ok: false, error: '缺少 baseUrl' };
+  if (!/^https?:\/\//i.test(baseUrl)) return { ok: false, error: 'baseUrl 仅支持 http/https 协议' };
   const endpoint = baseUrl.replace(/\/+$/, '') + '/models';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);

@@ -21,13 +21,9 @@ export class CombatOverlay extends Component {
 
   update() {
     const c = this.store.state.combat;
-    if (!c) {
-      this.el.style.display = 'none';
-      this.el.innerHTML = '';
-      return;
-    }
+    if (!c) { this.el.style.display = 'none'; this.el.innerHTML = ''; this._lastCombat = null; return; }
     this.el.style.display = '';
-    this.mode = 'root';
+    if (this._lastCombat !== c) { this.mode = 'root'; this._lastCombat = c; }
     this._render();
   }
 

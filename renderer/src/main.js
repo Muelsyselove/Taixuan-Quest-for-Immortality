@@ -42,7 +42,19 @@ store.subscribe(['history'], () => {
   if (last?.kind === 'breakthrough') audio.chime();
   if (last?.kind === 'death') audio.fall();
 });
-store.subscribe(['combat'], () => { if (store.state.combat) audio.hit(); });
+// 战斗遭遇音仅在战斗实例创建时播一次（此前每次 combat 状态变更都触发，回合内反复作响）
+let _inCombat = false;
+store.subscribe(['combat'], () => {
+  const now = !!store.state.combat;
+  if (now && !_inCombat) audio.hit();
+  _inCombat = now;
+});
+
+// 窗口隐藏时暂停 WebGL 灵雾渲染，回前台恢复（降低后台 CPU/GPU 占用）
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) mist.stop();
+  else mist.start();
+});
 
 /* ---------- 屏幕流转 ---------- */
 
@@ -118,5 +130,7 @@ document.getElementById('btn-close').onclick = () => window.taixuan.win.close();
   showMainMenu();
 })();
 
-// 调试钩子
-window.__game = { store, engine, combat, saves, mist, audio, screens };
+// 调试钩子：仅开发/自检环境（主进程未打包时附加 ?dev=1）挂载，正式包不暴露内部句柄
+if (new URLSearchParams(location.search).has('dev')) {
+  window.__game = { store, engine, combat, saves, mist, audio, screens };
+}

@@ -86,10 +86,10 @@ export const DOMAINS = [
     key: 'mapmode',
     file: 'mapmode.json',
     label: '地图模式',
-    desc: '地图模式进度：模式标记、财富（银元/灵石）、年月时间、炼丹等级经验、地图位置、所属宗门与各宗门好感、邪修标记、性别、银市行情与持仓、天慧符、行程方式、传讯好感记录',
+    desc: '地图模式进度：模式标记、财富（银元/灵石）、年月时间、炼丹等级经验、地图位置、所属宗门与各宗门好感、邪修标记、性别、银市行情与持仓、天慧符、行程方式、传讯好感记录、陨落标记',
     keys: ['mode', 'wealth', 'mapTime', 'alchemyLevel', 'alchemyExp', 'herbs',
            'mapLocation', 'sect', 'sectAffinity', 'evil', 'gender',
-           'stocks', 'portfolio', 'tianhui', 'travel', 'relationChatAt'],
+           'stocks', 'portfolio', 'tianhui', 'travel', 'relationChatAt', 'dead'],
     present(s) {
       return {
         模式: s.mode,

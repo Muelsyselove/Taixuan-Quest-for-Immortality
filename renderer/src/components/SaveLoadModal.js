@@ -1,7 +1,12 @@
 // 存档 / 读档 弹窗
-import { Component, h, icon } from '../core/component.js';
+import { h } from '../core/component.js';
+import { Modal } from '../ui/Modal.js';
 
-export class SaveLoadModal extends Component {
+export class SaveLoadModal extends Modal {
+  get modalTitle() { return '存档 · 读档'; }
+  get modalIcon() { return 'scroll'; }
+  get modalClass() { return 'save-modal'; }
+
   constructor(store, props) {
     super(store, props);
     // props.saves: SaveManager, props.onLoad: fn 读档后回调（重新推进剧情）
@@ -9,47 +14,39 @@ export class SaveLoadModal extends Component {
     this.busy = false;
   }
 
-  render() {
+  body() {
     this.listEl = h('div', { class: 'save-list' });
     this.inputEl = h('input', { class: 'set-input', placeholder: '新存档名称…', maxlength: 24 });
-
-    const mask = h('div', {
-      class: 'modal-mask',
-      onclick: (e) => { if (e.target === mask) this.close(); }
-    },
-      h('div', { class: 'modal save-modal' },
-        h('header', { class: 'panel-head' },
-          icon('scroll', 16),
-          h('span', { class: 'panel-title' }, '存档 · 读档'),
-          h('button', { class: 'modal-close', onclick: () => this.close() }, '×')
-        ),
-        h('div', { class: 'save-new' },
-          this.inputEl,
-          h('button', {
-            class: 'btn gold',
-            onclick: async () => {
-              const name = this.inputEl.value.trim() || `存档-${new Date().toLocaleString('zh-CN', { hour12: false })}`;
-              await this.props.saves.save(name);
-              this.inputEl.value = '';
-              this.refresh();
-            }
-          }, '存档'),
-          h('button', {
-            class: 'btn ghost save-newgame',
-            onclick: () => { this.close(); this.props.onRestart?.(); }
-          }, '重开此角色')
-        ),
-        this.listEl
-      )
-    );
-    this.el = mask;
-    return mask;
+    return [
+      h('div', { class: 'save-new' },
+        this.inputEl,
+        h('button', {
+          class: 'btn gold',
+          onclick: async () => {
+            const name = this.inputEl.value.trim() || `存档-${new Date().toLocaleString('zh-CN', { hour12: false })}`;
+            await this.props.saves.save(name);
+            this.inputEl.value = '';
+            this.refresh();
+          }
+        }, '存档'),
+        h('button', {
+          class: 'btn ghost save-newgame',
+          onclick: () => { this.close(); this.props.onRestart?.(); }
+        }, '重开此角色')
+      ),
+      this.listEl
+    ];
   }
 
   afterMount() { this.refresh(); }
 
   async refresh() {
-    this.slots = await this.props.saves.list();
+    try {
+      this.slots = await this.props.saves.list();
+    } catch (e) {
+      // 读档列表失败：按无存档渲染，不阻塞弹窗
+      this.slots = [];
+    }
     this.listEl.innerHTML = '';
     if (!this.slots.length) {
       this.listEl.appendChild(h('div', { class: 'inv-empty' }, '尚无存档。'));
@@ -80,6 +77,4 @@ export class SaveLoadModal extends Component {
       );
     }
   }
-
-  close() { this.destroy(); }
 }

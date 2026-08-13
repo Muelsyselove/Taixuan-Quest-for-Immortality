@@ -1,7 +1,8 @@
 // NPC 对话面板：AI 打招呼（首句）+ 固定话题（功能快捷）+ 自由输入
 // V2.4：自由对话好感——与已结识 NPC 自由攀谈，每隔 3 个月好感 +2（仅自由对话）；
 //       持天慧符可远程传讯（仅对话，无实际功能）。
-import { Component, h, icon } from '../core/component.js';
+import { h, icon } from '../core/component.js';
+import { Modal } from '../ui/Modal.js';
 import { FACILITY_TYPES } from '../core/mapData.js';
 
 // 功能 → 固定话题（点击进入对应系统）
@@ -18,7 +19,8 @@ const FUNCTION_TOPICS = {
   yinshi:   [{ key: 'yinshi', label: '银市行情' }]
 };
 
-export class NpcDialog extends Component {
+// 定制布局（npc-mask/npc-dialog），保留自有 DOM，仅继承基类的 Esc 关闭与单例守卫
+export class NpcDialog extends Modal {
   constructor(store, props) {
     super(store, props);
     // props: { npc, engine, remote?: boolean, onAction(actionKey, npc), onClose() }
@@ -97,6 +99,11 @@ export class NpcDialog extends Component {
       this.log[0].text = text;
       this.thinking = false;
       this._renderLog();
+    }).catch(() => {
+      // IPC 异常：首条占位改为默然，解锁输入
+      this.log[0].text = '（对方默然不语）';
+      this.thinking = false;
+      this._renderLog();
     });
   }
 
@@ -128,9 +135,15 @@ export class NpcDialog extends Component {
     this._push('player', text);
     this.thinking = true;
     this._push('npc', '……');
-    const reply = await this.props.engine.npcChat(this.props.npc, text, this.log);
-    this.thinking = false;
-    this.log[this.log.length - 1].text = reply;
+    let reply;
+    try {
+      reply = await this.props.engine.npcChat(this.props.npc, text, this.log);
+    } catch (e) {
+      reply = '……对方似未听闻。';
+    } finally {
+      this.thinking = false;
+      this.log[this.log.length - 1].text = reply;
+    }
     // V2.4：自由对话好感（每 3 个月限一次，仅自由对话触发）
     const g = this.store.tryChatAffinity?.(this.props.npc.name);
     if (g?.gained) {
@@ -139,6 +152,9 @@ export class NpcDialog extends Component {
     }
     this._renderLog();
   }
+
+  // 基类 close 走 _close：确保 onClose 回调触发（挂载方清理引用）
+  close() { this._close(); }
 
   _close() {
     this.props.onClose?.();

@@ -1,8 +1,13 @@
 // 背包二级页：分类查看 + 稀有度筛选 + 使用物品
-import { Component, h, icon } from '../core/component.js';
+import { h } from '../core/component.js';
+import { Modal } from '../ui/Modal.js';
 import { CONFIG } from '../core/config.js';
 
-export class InventoryModal extends Component {
+export class InventoryModal extends Modal {
+  get modalTitle() { return '背包'; }
+  get modalIcon() { return 'drop'; }
+  get modalClass() { return 'inv-modal'; }
+
   constructor(store, props) {
     super(store, props);
     this.filterCat = 'all';
@@ -12,28 +17,18 @@ export class InventoryModal extends Component {
 
   watch() { return ['items']; }
 
-  render() {
+  headerExtra() {
+    return h('span', { class: 'inv-count' }, `${this.store.state.items.length} 件`);
+  }
+
+  body() {
     this.tabsEl = h('div', { class: 'inv-tabs' });
     this.rarityEl = h('div', { class: 'inv-rarities' });
     this.listEl = h('div', { class: 'inv-list' });
-
-    const mask = h('div', {
-      class: 'modal-mask',
-      onclick: (e) => { if (e.target === mask) this.close(); }
-    },
-      h('div', { class: 'modal inv-modal' },
-        h('header', { class: 'panel-head' },
-          icon('drop', 16),
-          h('span', { class: 'panel-title' }, '背包'),
-          h('span', { class: 'inv-count' }, `${this.store.state.items.length} 件`),
-          h('button', { class: 'modal-close', onclick: () => this.close() }, '×')
-        ),
-        h('div', { class: 'inv-filters' }, this.tabsEl, this.rarityEl),
-        this.listEl
-      )
-    );
-    this.el = mask;
-    return mask;
+    return [
+      h('div', { class: 'inv-filters' }, this.tabsEl, this.rarityEl),
+      this.listEl
+    ];
   }
 
   afterMount() { this.update(); }
@@ -81,8 +76,8 @@ export class InventoryModal extends Component {
       return;
     }
     for (const item of items) {
-      const r = CONFIG.rarities.find(x => x.key === item.rarity);
-      const cat = CONFIG.itemCategories.find(x => x.key === item.category);
+      const r = CONFIG.rarities.find(x => x.key === item.rarity) ?? { label: item.rarity ?? '未知', color: '#9a937f' };
+      const cat = CONFIG.itemCategories.find(x => x.key === item.category) ?? { label: item.category ?? '杂物' };
       // 仅新入囊的物品播放入场动画；刷新重绘时保持静止
       const isNew = !this._seen.has(item.id);
       this._seen.add(item.id);
@@ -111,6 +106,4 @@ export class InventoryModal extends Component {
       );
     }
   }
-
-  close() { this.destroy(); }
 }

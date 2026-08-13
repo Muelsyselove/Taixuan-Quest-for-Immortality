@@ -5,6 +5,7 @@ export class EventPanel extends Component {
   constructor(store, props) {
     super(store, props);
     this._typeTimer = null;
+    this._pauseT = null;
     this._shownText = '';
   }
 
@@ -50,11 +51,10 @@ export class EventPanel extends Component {
     this.hintEl.innerHTML = s.aiReady ? '' : '<span class="no-ai">未接入 AI · 本地机缘模式中（点击右上角 ⚙ 配置 API）</span>';
 
     const ev = s.event;
-    if (!ev) {
-      this._typewrite('万籁俱寂，灵雾未散。你的道途尚未启笔……');
-      return;
-    }
-    this._typewrite(ev.event);
+    const text = ev ? ev.event : '万籁俱寂，灵雾未散。你的道途尚未启笔……';
+    // 文本未变时跳过打字机重播（busy/aiReady/day 变化不打扰已呈现文本）
+    if (text === this._shownText) return;
+    this._typewrite(text);
   }
 
   _cn(n) {
@@ -66,7 +66,9 @@ export class EventPanel extends Component {
   }
 
   _typewrite(text) {
+    this._shownText = text;
     clearInterval(this._typeTimer);
+    clearTimeout(this._pauseT);
     this.textEl.textContent = '';
     let i = 0;
     this._typeTimer = setInterval(() => {
@@ -77,7 +79,7 @@ export class EventPanel extends Component {
       if (i >= text.length) return clearInterval(this._typeTimer);
       if ('。！？；…—'.includes(ch)) {
         clearInterval(this._typeTimer);
-        setTimeout(() => this._resume(text, i), 260);
+        this._pauseT = setTimeout(() => this._resume(text, i), 260);
       }
     }, 34);
   }
@@ -90,13 +92,14 @@ export class EventPanel extends Component {
       if (i >= text.length) return clearInterval(this._typeTimer);
       if ('。！？；…—'.includes(ch)) {
         clearInterval(this._typeTimer);
-        setTimeout(() => this._resume(text, i), 260);
+        this._pauseT = setTimeout(() => this._resume(text, i), 260);
       }
     }, 34);
   }
 
   destroy() {
     clearInterval(this._typeTimer);
+    clearTimeout(this._pauseT);
     super.destroy();
   }
 }

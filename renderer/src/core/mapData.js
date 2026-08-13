@@ -57,5 +57,6 @@ export function canJoinSect(sectId, playerState) {
   if (req.gender && playerState.gender !== req.gender) return { ok: false, reason: '性别不符' };
   if (req.evil && !playerState.evil) return { ok: false, reason: '需为邪修' };
   if (req.righteous && playerState.evil) return { ok: false, reason: '邪修不可入' };
+  if (req.swordSkill && !playerState.activeSkills?.some(s => s.root === 'jin')) return { ok: false, reason: '需掌握金系剑法' };
   return { ok: true };
 }

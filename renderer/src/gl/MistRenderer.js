@@ -104,6 +104,9 @@ export class MistRenderer {
     this.maxDpr = 1.6; // 画质上限（设置页可调）
     this._init();
     this._bind();
+    // 上下文丢失：preventDefault 允许恢复，先停渲染循环；恢复后重建 GL 资源再启动
+    this.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); this.stop(); });
+    this.canvas.addEventListener('webglcontextrestored', () => { this._init(); this._resize(); this.start(); });
     this._loop = this._loop.bind(this);
     requestAnimationFrame(this._loop);
   }
@@ -121,6 +124,7 @@ export class MistRenderer {
     gl.compileShader(sh);
     if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
       console.error(gl.getShaderInfoLog(sh));
+      return null; // 编译失败：由 _init 降级
     }
     return sh;
   }
@@ -128,9 +132,17 @@ export class MistRenderer {
   _init() {
     const gl = this.gl;
     const prog = gl.createProgram();
-    gl.attachShader(prog, this._compile(gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, this._compile(gl.FRAGMENT_SHADER, FRAG));
+    const vs = this._compile(gl.VERTEX_SHADER, VERT);
+    const fs = this._compile(gl.FRAGMENT_SHADER, FRAG);
+    if (!vs || !fs) { this.gl = null; return; } // 降级为纯 CSS 背景（_loop 已判空）
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
     gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      console.error(gl.getProgramInfoLog(prog));
+      this.gl = null;
+      return;
+    }
     gl.useProgram(prog);
     this.prog = prog;
 

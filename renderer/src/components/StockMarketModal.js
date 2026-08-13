@@ -17,6 +17,7 @@ export class StockMarketModal extends Modal {
     this.notice = '';
     this.qty = {};      // 各股委托数量 { stockId: n }
     this.ruleFor = null; // 展开规则编辑的 scope（'all' 或 stockId）
+    this.ruleDraft = null; // 量化规则草稿 { scope, fields }：watch 重建时回填，避免未提交输入被清空
   }
 
   watch() { return ['stocks', 'portfolio', 'wealth', 'tianhui']; }
@@ -110,6 +111,10 @@ export class StockMarketModal extends Modal {
     const qtyInput = h('input', {
       class: 'stock-qty set-input', type: 'number', min: '1', max: '999', value: String(qty)
     });
+    // input 即时落内部数量（不触发整表 _refresh，避免 blur 重建吞掉首次买入点击）
+    qtyInput.addEventListener('input', () => {
+      this.qty[def.id] = Math.max(1, Math.min(999, Math.round(parseInt(qtyInput.value, 10)) || 1));
+    });
     qtyInput.addEventListener('change', () => setQty(parseInt(qtyInput.value, 10)));
 
     return h('div', { class: 'stock-item' },
@@ -132,13 +137,13 @@ export class StockMarketModal extends Modal {
           class: 'btn gold sm',
           disabled: s.wealth.silver < price * qty ? 'disabled' : null,
           title: s.wealth.silver < price * qty ? '银元不足' : `买入 ${qty} 股，约 ${price * qty} 银元`,
-          onclick: () => this._do(() => this.store.buyStock(def.id, qty))
+          onclick: () => this._do(() => this.store.buyStock(def.id, this.qty[def.id] ?? 1))
         }, '买入'),
         h('button', {
           class: 'btn ghost sm',
           disabled: held < qty ? 'disabled' : null,
           title: held < qty ? `持仓不足（仅 ${held} 股）` : `卖出 ${qty} 股，约得 ${price * qty} 银元`,
-          onclick: () => this._do(() => this.store.sellStock(def.id, qty))
+          onclick: () => this._do(() => this.store.sellStock(def.id, this.qty[def.id] ?? 1))
         }, '卖出'),
         tongling ? h('button', {
           class: `ms-ex-btn ${rule ? 'on' : ''}`,
@@ -176,11 +181,13 @@ export class StockMarketModal extends Modal {
     const isAll = scope === 'all';
     const name = isAll ? '全局（所有银股）' : (STOCKS.find(x => x.id === scope)?.name ?? scope);
     const cur = this.store.state.tianhui?.rules?.[scope] ?? {};
-    const fields = {};
+    // 草稿提升到实例：watch 推送重建编辑器时回填未提交输入；换 scope 则重起草稿
+    if (this.ruleDraft?.scope !== scope) this.ruleDraft = { scope, fields: {} };
+    const fields = this.ruleDraft.fields;
     const mk = (key, label, ph) => {
-      const inp = h('input', { class: 'set-input stock-rule-inp', type: 'number', min: '1', value: cur[key] ? String(cur[key]) : '', placeholder: ph });
+      if (!(key in fields)) fields[key] = cur[key] ?? '';
+      const inp = h('input', { class: 'set-input stock-rule-inp', type: 'number', min: '1', value: fields[key] ? String(fields[key]) : '', placeholder: ph });
       inp.addEventListener('input', () => { fields[key] = inp.value; });
-      fields[key] = cur[key] ?? '';
       return h('label', { class: 'stock-rule-field' }, h('span', null, label), inp);
     };
 
@@ -205,6 +212,7 @@ export class StockMarketModal extends Modal {
               sellAbove: +fields.sellAbove || 0, sellQty: +fields.sellQty || 0
             });
             this.ruleFor = null;
+            this.ruleDraft = null; // 保存成功，清空草稿
             return r;
           })
         }, '立下规则'),
@@ -213,6 +221,7 @@ export class StockMarketModal extends Modal {
           onclick: () => this._do(() => {
             const r = this.store.setStockRule(scope, {}); // 清除
             this.ruleFor = null;
+            this.ruleDraft = null;
             return r;
           })
         }, '废除规则'),
