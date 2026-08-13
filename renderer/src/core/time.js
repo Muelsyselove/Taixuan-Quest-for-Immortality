@@ -25,8 +25,9 @@ export function createTime(year = 1, month = 1) {
   return { year, month };
 }
 
-/** 时间推进（月为单位） */
+/** 时间推进（月为单位；耗时取整到月，避免分数月份破坏年月换算） */
 export function advanceTime(time, months = 1) {
+  months = Math.max(0, Math.round(months));
   const totalMonths = (time.year - 1) * 12 + (time.month - 1) + months;
   return {
     year: Math.floor(totalMonths / 12) + 1,

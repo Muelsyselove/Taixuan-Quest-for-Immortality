@@ -65,7 +65,6 @@ export class CombatEngine {
   _end(result) {
     const c = this.c;
     this.store.set({ combat: { ...c, phase: 'over', result } });
-    const s = this.store.state;
 
     if (result === 'win') {
       const gain = Math.round(c.enemy.maxHp * 0.35 + c.enemy.atk * 2);
@@ -80,8 +79,8 @@ export class CombatEngine {
       if (c.spar) {
         this.store.pushHistory(`切磋不敌【${c.enemy.name}】，拱手认输——点到为止，无伤大雅`, 'combat');
       } else {
-        this.store.pushHistory(`不敌【${c.enemy.name}】，重伤遁走`, 'death');
-        this.store.applyEffects({ hp: -s.maxHp }); // 触发轮回判定
+        this.store.pushHistory(`不敌【${c.enemy.name}】，重伤遁走`, 'combat');
+        this.store.applyDeathPenalty(); // 轮回结算：hp 回复三成、修为折损
       }
     } else if (result === 'flee') {
       this.store.pushHistory(`自【${c.enemy.name}】手下脱身而去`, 'combat');
@@ -150,9 +149,9 @@ export class CombatEngine {
     return base * this._statMult(side, 'atk');
   }
 
-  _effDef(side) {
-    const base = side === 'player' ? this.store.effStat('pdef') : this.c.enemy.pdef;
-    return base * this._statMult(side, 'pdef');
+  _effDef(side, stat = 'pdef') {
+    const base = side === 'player' ? this.store.effStat(stat) : (this.c.enemy[stat] ?? 0);
+    return base * this._statMult(side, stat);
   }
 
   /** 化形闪避概率：buff 化形效果 + 玩家常驻闪避（上限 80%） */
@@ -297,9 +296,9 @@ export class CombatEngine {
   /**
    * 一次攻击的完整结算链：化形闪避 → 防御 → 会心 → 次数盾 → 屏障 → 格挡 → 扣血 → 反伤
    * @param atkSide 'player'|'enemy'
-   * @param opts { atk 攻击方有效攻击, mult 倍率, label 招式描述 }
+   * @param opts { atk 攻击方有效攻击, mult 倍率, label 招式描述, defStat 防御维度（pdef 物理 / mdef 法术） }
    */
-  _strike(atkSide, { atk, mult, label }) {
+  _strike(atkSide, { atk, mult, label, defStat = 'pdef' }) {
     const c = this.c;
     const defSide = atkSide === 'player' ? 'enemy' : 'player';
     const atkName = atkSide === 'player' ? '你' : `【${c.enemy.name}】`;
@@ -311,7 +310,7 @@ export class CombatEngine {
       return;
     }
 
-    const def = this._effDef(defSide);
+    const def = this._effDef(defSide, defStat);
     let dmg = Math.max(1, Math.round(atk * mult - def * 0.8));
     const crit = Math.random() < this._critChance(atkSide);
     if (crit) dmg = Math.round(dmg * CONFIG.combat.critMult);
@@ -376,9 +375,9 @@ export class CombatEngine {
     const atk = this._effAtk(side);
     const sub = [];
 
-    // 直接伤害
+    // 直接伤害（带灵根属性的术法走法防 mdef，无属性打击走物防 pdef）
     if (sk.mult) {
-      this._strike(side, { atk, mult: sk.mult, label: `施展【${sk.name}】` });
+      this._strike(side, { atk, mult: sk.mult, label: `施展【${sk.name}】`, defStat: sk.root ? 'mdef' : 'pdef' });
     }
     // 治疗（基于攻击倍率）
     if (sk.healMult) {
@@ -461,6 +460,13 @@ export class CombatEngine {
     if (!c || c.phase !== 'player') return;
     const s = this.store.state;
 
+    // 行动合法性前置校验：非法行动直接驳回，不触发回合开始结算（防止白嫖 tick 效果）
+    if (action.type === 'skill') {
+      if (!action.skill || s.mp < (action.skill.cost ?? 10)) { this._log('sys', '法力不足，技能施展失败！'); return; }
+    } else if (action.type === 'item') {
+      if (!s.items.some(i => i.id === action.itemId)) return;
+    }
+
     this._tickStart('player');
     if (this._checkEnd()) return;
 
@@ -473,15 +479,12 @@ export class CombatEngine {
           break;
         case 'skill': {
           const sk = action.skill;
-          const cost = sk?.cost ?? 10;
-          if (!sk || s.mp < cost) { this._log('sys', '法力不足，技能施展失败！'); return; }
-          this.store.applyEffects({ mp: -cost });
+          this.store.applyEffects({ mp: -(sk.cost ?? 10) });
           this._castSkill('player', sk);
           break;
         }
         case 'item': {
           const item = s.items.find(i => i.id === action.itemId);
-          if (!item) return;
           this.store.useItem(item.id);
           this._log('player', `你取出【${item.name}】一服而下`);
           break;

@@ -1,5 +1,6 @@
 // 技能 / 天赋 二级页：主动 / 被动 / 天赋 三栏详情（技能层结构化字段展示）
-import { Component, h, icon } from '../core/component.js';
+import { h, icon } from '../core/component.js';
+import { Modal } from '../ui/Modal.js';
 import { CONFIG } from '../core/config.js';
 import { describeActive, describePassive } from '../core/skills.js';
 import { effectText, EFFECTS } from '../core/fx.js';
@@ -10,7 +11,11 @@ const SECTIONS = [
   { key: 'talents', title: '天赋能力', icon: 'spark', tip: '与生俱来的根骨机缘' }
 ];
 
-export class SkillsModal extends Component {
+export class SkillsModal extends Modal {
+  get modalTitle() { return '功法神通'; }
+  get modalIcon() { return 'sword'; }
+  get modalClass() { return 'skills-modal'; }
+
   constructor(store, props) {
     super(store, props);
     this.tab = 'activeSkills';
@@ -18,26 +23,13 @@ export class SkillsModal extends Component {
 
   watch() { return ['activeSkills', 'passiveSkills', 'talents']; }
 
-  render() {
+  body() {
     this.tabsEl = h('div', { class: 'inv-tabs' });
-    this.bodyEl = h('div', { class: 'skill-detail-list' });
-
-    const mask = h('div', {
-      class: 'modal-mask',
-      onclick: (e) => { if (e.target === mask) this.close(); }
-    },
-      h('div', { class: 'modal skills-modal' },
-        h('header', { class: 'panel-head' },
-          icon('sword', 16),
-          h('span', { class: 'panel-title' }, '功法神通'),
-          h('button', { class: 'modal-close', onclick: () => this.close() }, '×')
-        ),
-        h('div', { class: 'inv-filters' }, this.tabsEl),
-        this.bodyEl
-      )
-    );
-    this.el = mask;
-    return mask;
+    this.listEl = h('div', { class: 'skill-detail-list' });
+    return [
+      h('div', { class: 'inv-filters' }, this.tabsEl),
+      this.listEl
+    ];
   }
 
   afterMount() { this.update(); }
@@ -54,14 +46,14 @@ export class SkillsModal extends Component {
 
     const sec = SECTIONS.find(s => s.key === this.tab);
     const list = this.store.state[this.tab];
-    this.bodyEl.innerHTML = '';
-    this.bodyEl.appendChild(h('div', { class: 'skill-sec-tip' }, sec.tip));
+    this.listEl.innerHTML = '';
+    this.listEl.appendChild(h('div', { class: 'skill-sec-tip' }, sec.tip));
     if (!list.length) {
-      this.bodyEl.appendChild(h('div', { class: 'inv-empty' }, '尚未领悟'));
+      this.listEl.appendChild(h('div', { class: 'inv-empty' }, '尚未领悟'));
       return;
     }
     for (const sk of list) {
-      this.bodyEl.appendChild(this._card(sec.key, sk));
+      this.listEl.appendChild(this._card(sec.key, sk));
     }
   }
 
@@ -112,6 +104,4 @@ export class SkillsModal extends Component {
       })
     );
   }
-
-  close() { this.destroy(); }
 }

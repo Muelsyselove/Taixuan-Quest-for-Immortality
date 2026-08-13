@@ -56,6 +56,7 @@ export class MapView extends Component {
     for (const [a, b] of CONFIG.map.edges) {
       const na = CONFIG.map.nodes.find(n => n.id === a);
       const nb = CONFIG.map.nodes.find(n => n.id === b);
+      if (!na || !nb) continue;
       const mx = (na.x + nb.x) / 2, my = (na.y + nb.y) / 2 - 26;
       edgeLayer.appendChild(svgEl('path', {
         d: `M${na.x} ${na.y} Q${mx} ${my} ${nb.x} ${nb.y}`,
@@ -117,7 +118,12 @@ export class MapView extends Component {
     if (node) {
       this.marker.style.transition = 'transform 1.1s cubic-bezier(.22,1,.36,1)';
       this.marker.style.transform = `translate(${node.x}px, ${node.y}px)`;
-      this.locText.innerHTML = `<span class="loc-dot"></span>当前所在 · <b>${node.name}</b>`;
+      // 位置文本用 DOM 构建，避免地名进 innerHTML
+      this.locText.replaceChildren(
+        h('span', { class: 'loc-dot' }),
+        '当前所在 · ',
+        h('b', null, node.name)
+      );
     }
   }
 }

@@ -13,6 +13,8 @@ import { wealthDomain } from './domains/wealth.js';
 import { persistenceDomain } from './domains/persistence.js';
 
 export class GameStore {
+  static HISTORY_MAX = 500; // 史册保留条数上限
+
   constructor() {
     this.state = structuredClone(CONFIG.initialState);
     this.state.realm = CONFIG.realms[this.state.realmIndex];
@@ -61,13 +63,19 @@ export class GameStore {
     const patch = {};
     const num = (v) => (typeof v === 'number' && !Number.isNaN(v) ? v : 0);
     const s = this.state;
-    const capHp = this.effStat('maxHp');
-    const capMp = this.effStat('maxMp');
 
     const apply = (key, delta) => {
       if (!delta) return;
       patch[key] = (patch[key] ?? s[key]) + delta;
     };
+    // 上限类效果（丹药/奇遇）：先落 maxHp/maxMp，并对当前血/蓝做差额补偿
+    const capHpDelta = num(effects.maxHp);
+    const capMpDelta = num(effects.maxMp);
+    apply('maxHp', capHpDelta);
+    apply('maxMp', capMpDelta);
+    if (capHpDelta > 0) apply('hp', capHpDelta);
+    if (capMpDelta > 0) apply('mp', capMpDelta);
+
     apply('hp', num(effects.hp));
     apply('mp', num(effects.mp));
     apply('atk', num(effects.atk));
@@ -76,7 +84,9 @@ export class GameStore {
     const culDelta = num(effects.cultivation);
     apply('cultivation', culDelta > 0 ? Math.round(culDelta * this.cultivationMult()) : culDelta);
 
-    // 钳制（上限含被动/天赋/buff 的 maxHp/maxMp 加成）
+    // 钳制（上限基于补丁后的基础值 + 被动/天赋/buff 的 maxHp/maxMp 加成）
+    const capHp = Math.round(((patch.maxHp ?? s.maxHp) + this._modSum('maxHp')) * (1 + this._modSum('maxHpPct')));
+    const capMp = Math.round(((patch.maxMp ?? s.maxMp) + this._modSum('maxMp')) * (1 + this._modSum('maxMpPct')));
     if (patch.hp != null) patch.hp = Math.max(0, Math.min(patch.hp, capHp));
     if (patch.mp != null) patch.mp = Math.max(0, Math.min(patch.mp, capMp));
     if (patch.cultivation != null) patch.cultivation = Math.max(0, patch.cultivation);
@@ -91,22 +101,36 @@ export class GameStore {
           this._applyRealmUp(patch, s, next);
           patch.cultivation = (patch.cultivation ?? s.cultivation) - s.cultivationCap;
           this.pushHistory(`天雷淬体，道基重铸——突破至【${patch.realm}】！`, 'breakthrough');
+        } else {
+          patch.cultivation = s.cultivationCap; // 已至最高境界：修为封顶不溢出
         }
       }
     }
 
-    // 死亡判定（切磋点到为止，不致陨落）
+    // 死亡判定（切磋点到为止；战斗中落败由 combat._end('lose') 调 applyDeathPenalty 统一结算）
     if ((patch.hp ?? s.hp) <= 0) {
       if (s.combat?.spar) {
         patch.hp = 1;
-      } else {
+      } else if (!s.combat) {
+        // 非战斗场景（事件伤害/丹毒等）：原地轮回结算
         patch.hp = Math.round(capHp * 0.3);
         patch.cultivation = Math.round((patch.cultivation ?? s.cultivation) * 0.7);
         this.pushHistory('道友身受重伤，一缕残魂遁入轮回，侥幸保命但修为受损', 'death');
       }
+      // 战斗中（非切磋）：hp 保持 0，交由 combat._checkEnd 判负
     }
 
     this.set(patch);
+  }
+
+  /** 重伤轮回统一结算：hp 回复三成、修为折损（战斗落败等场景调用） */
+  applyDeathPenalty() {
+    const capHp = this.effStat('maxHp');
+    this.set({
+      hp: Math.round(capHp * 0.3),
+      cultivation: Math.round(this.state.cultivation * 0.7)
+    });
+    this.pushHistory('道友身受重伤，一缕残魂遁入轮回，侥幸保命但修为受损', 'death');
   }
 
   /** 境界提升的属性成长（patch 为待写入的补丁对象） */
@@ -169,6 +193,8 @@ export class GameStore {
     const entry = { day: this.state.day, text, kind, t: Date.now() };
     if (this.state.mode === 'map') entry.when = formatTime(this.state.mapTime); // 地图模式以年/月计
     const history = [...this.state.history, entry];
+    // 截尾上限：避免长局史册无界增长拖垮写档深拷贝与内存
+    if (history.length > GameStore.HISTORY_MAX) history.splice(0, history.length - GameStore.HISTORY_MAX);
     this.set({ history });
   }
 

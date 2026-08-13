@@ -46,7 +46,8 @@ export class OptionDock extends Component {
     );
 
     this._keyHandler = (e) => {
-      if (document.activeElement === this.inputEl) return;
+      const t = e.target;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement || t?.isContentEditable) return;
       const idx = ['1', '2', '3', '4'].indexOf(e.key);
       if (idx >= 0) this.gridEl.children[idx]?.click();
     };

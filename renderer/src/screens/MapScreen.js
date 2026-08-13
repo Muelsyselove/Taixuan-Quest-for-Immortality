@@ -132,6 +132,7 @@ export class MapScreen extends Component {
     if (this._viewOf() === this._level && this._mainKid) { this._renderMini(); return; } // 同级移动仅刷新侧栏
 
     const swap = () => {
+      if (!this.el.isConnected) return; // 切屏销毁后幽灵定时器不再换景
       // 换景时刻重读最新状态，避免用过场开始前捕获的旧位置渲染
       const view = this._viewOf();
       const loc = this.store.state.mapLocation ?? {};
@@ -178,11 +179,11 @@ export class MapScreen extends Component {
     this._transitioning = true;
     this.veilEl.classList.add('on');
     this.props.audio?.click?.();
-    setTimeout(() => {
+    this._transT1 = setTimeout(() => {
       swap();
       this.veilEl.classList.remove('on');
       this.veilEl.classList.add('off');
-      setTimeout(() => {
+      this._transT2 = setTimeout(() => {
         this.veilEl.classList.remove('off');
         this._transitioning = false;
         // 过场期间被拦截的导航：状态与视图不一致时按最新状态补渲染
@@ -440,6 +441,8 @@ export class MapScreen extends Component {
   }
 
   destroy() {
+    clearTimeout(this._transT1);
+    clearTimeout(this._transT2);
     this._unsubLoc?.();
     this._unsubExplore?.();
     this._unsubDead?.();

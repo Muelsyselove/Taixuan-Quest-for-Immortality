@@ -353,11 +353,7 @@ export const mapDomain = {
     const after = getAlchemyLevel(alchemyExp);
     this.set({ alchemyExp, alchemyLevel: after.level });
 
-    const { died } = this.advanceMapTime(TIME_COST.alchemy);
-    if (died) return { ...res, died: true };
-    if (after.level > beforeLv) {
-      this.pushHistory(`丹道精进——晋升为【${after.name}】（成功率 ${Math.round(after.successRate * 100)}%）`, 'skill');
-    }
+    // 丹成即入囊：先于时间推进落袋，避免推进耗时中寿元陨落导致丹药两空
     if (res.success) {
       const isPill = !!res.pill.effects.breakthrough;
       const effectText = isPill ? '突破大境界时服用，提升成功率' :
@@ -368,8 +364,14 @@ export const mapDomain = {
         usable: !isPill, effects: isPill ? {} : res.pill.effects,
         quality: res.pill.quality,
         breakthrough: isPill ? res.pill.effects.breakthrough : undefined,
-        price: MAP_ITEMS[this._pillItemKey(res.pill.name)]?.price ?? null
+        price: isPill ? null : (MAP_ITEMS[this._pillItemKey(res.pill.name)]?.price ?? null) // 自炼突破丹不可售，防刷银
       });
+    }
+
+    const { died } = this.advanceMapTime(TIME_COST.alchemy);
+    if (died) return { ...res, died: true };
+    if (after.level > beforeLv) {
+      this.pushHistory(`丹道精进——晋升为【${after.name}】（成功率 ${Math.round(after.successRate * 100)}%）`, 'skill');
     }
     this.pushHistory(res.message, 'alchemy');
     return { ...res, died: false };
@@ -383,6 +385,11 @@ export const mapDomain = {
   mapBreakthrough(pillItemId = null) {
     const s = this.state;
     const pill = pillItemId ? s.items.find(i => i.id === pillItemId) : null;
+    if (pillItemId && !pill) return { ok: false, reason: '丹药已不存在' };
+    // 突破丹须与目标大境界匹配（item.breakthrough = 目标境界序，如筑基丹=1、金丹=2）
+    if (pill && pill.breakthrough !== s.realmIndex + 1) {
+      return { ok: false, reason: '丹药与突破境界不符' };
+    }
     const res = attemptBreakthrough(s, pill?.quality ?? 0);
     if (!res.ok) return res;
     if (pill) this.set({ items: this.state.items.filter(i => i.id !== pillItemId) }); // 丹药已服

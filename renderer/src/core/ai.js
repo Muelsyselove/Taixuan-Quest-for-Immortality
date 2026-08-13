@@ -85,6 +85,11 @@ export class NarrativeEngine {
       }
       ch = Math.max(0, Math.min(pt, Math.round(ch)));
       cm = Math.max(0, Math.min(pt, Math.round(cm)));
+      if (ch + cm > pt) { // 合计不得超输入总量：按比例缩回，避免重复计费
+        const k = pt / (ch + cm);
+        ch = Math.floor(ch * k);
+        cm = pt - ch;
+      }
       await window.taixuan.usage.record({
         t: Date.now(), kind,
         vendor: this.settings.vendor,
@@ -99,6 +104,7 @@ export class NarrativeEngine {
 
   /** action 为玩家选择/输入的行动，opening=true 时为开局 */
   async advance(action, { opening = false } = {}) {
+    if (this.store.get('busy')) return; // 重入防护：思考中不并发推进（避免双倍结算/双 nextDay）
     this.store.set({ busy: true });
     try {
       let result = null;
@@ -190,21 +196,34 @@ export class NarrativeEngine {
       if (!m) return null;
       const data = JSON.parse(m[0]);
       if (typeof data.event !== 'string' || !Array.isArray(data.options)) return null;
+      const options = data.options.slice(0, 4).map(o => String(o).trim()).filter(Boolean);
+      if (!options.length) return null; // 空选项会导致对话模式无可点分支（软锁），落本地兜底
       return {
         event: data.event,
-        options: data.options.slice(0, 4).map(String),
+        options,
         effects: data.effects && typeof data.effects === 'object' ? data.effects : {},
         location: typeof data.location === 'string' ? data.location : null,
         log: typeof data.log === 'string' ? data.log : null,
         grantSkill: data.grantSkill && typeof data.grantSkill === 'object' ? data.grantSkill : null,
         registerSkill: data.registerSkill && typeof data.registerSkill === 'object' ? data.registerSkill : null,
-        grantItem: data.grantItem && typeof data.grantItem === 'object' ? data.grantItem : null,
+        grantItem: data.grantItem && typeof data.grantItem === 'object' ? this._normalizeItem(data.grantItem) : null,
         relations: Array.isArray(data.relations) ? data.relations.filter(r => r && typeof r === 'object') : null,
         combat: data.combat && typeof data.combat === 'object' && data.combat.enemy ? data.combat : null
       };
     } catch {
       return null;
     }
+  }
+
+  /** AI 授予物品归一化：稀有度/分类收敛到合法枚举，防脏数据击穿渲染层 */
+  _normalizeItem(item) {
+    const it = { ...item };
+    it.name = String(it.name ?? '无名之物').slice(0, 20);
+    it.desc = String(it.desc ?? '').slice(0, 80);
+    it.effect = String(it.effect ?? '').slice(0, 40);
+    if (!CONFIG.rarities.some(r => r.key === it.rarity)) it.rarity = 'pingfan';
+    if (!CONFIG.itemCategories.some(c => c.key === it.category)) it.category = 'qiwu';
+    return it;
   }
 
   /* ---------- 敌方战斗决策（AI 代理 / 本地策略兜底） ---------- */
@@ -219,7 +238,7 @@ export class NarrativeEngine {
         try {
           const m = content.match(/\{[\s\S]*\}/);
           const data = JSON.parse(m?.[0] || '');
-          if (['attack', 'skill', 'guard'].includes(data.action)) {
+          if (['attack', 'skill', 'guard', 'rest'].includes(data.action)) {
             return { action: data.action, skill: data.skill, narration: String(data.narration || '') };
           }
         } catch { /* 落入本地策略 */ }
@@ -365,7 +384,7 @@ export class NarrativeEngine {
     return this._creationFallback(kind, rootKeys);
   }
 
-  /** 从技能库抽样候选：主动仅取已选灵根对应属性+无属性；被动取全库（含无属性） */
+  /** 从技能库抽样候选：主动/被动均按已选灵根过滤（未选灵根时取全库；主动天然按灵根相关） */
   _librarySample(kind, rootKeys) {
     const type = kind === 'active' ? 'active' : 'passive';
     const keys = rootKeys.length ? rootKeys : CONFIG.roots.map(r => r.key);

@@ -89,17 +89,27 @@ export class ExploreGrid extends Component {
 
   /* ---------------- 格阵 ---------------- */
   _renderGrid(ex) {
-    this.gridEl.innerHTML = '';
     if (!ex) {
+      this.gridEl.innerHTML = '';
+      this._cells = null;
       this.gridEl.appendChild(h('div', { class: 'inv-empty' }, '雾霭散尽，探寻已了。'));
       return;
     }
     const { size, cells, player } = ex;
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        this.gridEl.appendChild(this._cell(ex, cells[y][x], x, y, player));
+    // 首次渲染创建并缓存全部格子节点；后续状态推送仅就地更新 class/文本
+    if (!this._cells || this._cells.length !== size * size) {
+      this.gridEl.innerHTML = '';
+      this._cells = [];
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const ico = h('span', { class: 'ex-fog-dot' }, '？');
+          const btn = h('button', { class: 'ex-cell', onclick: () => this._tap(x, y) }, ico);
+          this._cells.push({ btn, ico, x, y });
+          this.gridEl.appendChild(btn);
+        }
       }
     }
+    for (const c of this._cells) this._paintCell(ex, cells[c.y][c.x], c);
     // 提示
     const cell = cells[player.y][player.x];
     const def = EXPLORE_CELLS[cell.type] ?? EXPLORE_CELLS.empty;
@@ -116,7 +126,10 @@ export class ExploreGrid extends Component {
     }
   }
 
-  _cell(ex, cell, x, y, player) {
+  /** 就地更新单个缓存格子的样式与文本 */
+  _paintCell(ex, cell, c) {
+    const { player } = ex;
+    const { btn, ico, x, y } = c;
     const isPlayer = player.x === x && player.y === y;
     const seen = cell.visited;
     const def = EXPLORE_CELLS[cell.type] ?? EXPLORE_CELLS.empty;
@@ -131,19 +144,22 @@ export class ExploreGrid extends Component {
     if (cell.cleared) cls.push('cleared');
     if (adjacent && seen && !ex.done && !this._busy) cls.push('reachable');
     if (cell.type === 'exit') cls.push('exit-cell');
+    btn.className = cls.join(' ');
+    btn.title = !seen ? '迷雾未散' : blocked ? `${def.label}——未清剿，踏入即战` : `${def.label}——${def.desc}`;
 
-    return h('button', {
-      class: cls.join(' '),
-      title: !seen ? '迷雾未散' : blocked ? `${def.label}——未清剿，踏入即战` : `${def.label}——${def.desc}`,
-      onclick: () => this._tap(x, y)
-    },
-      isPlayer
-        ? h('span', { class: 'ex-player' }, '我')
-        : seen
-          ? h('span', { class: `ex-cell-ico ${style.cls}`, style: { color: style.color } },
-              cell.cleared && cell.type !== 'exit' ? '✓' : def.glyph)
-          : h('span', { class: 'ex-fog-dot' }, '？')
-    );
+    if (isPlayer) {
+      ico.className = 'ex-player';
+      ico.textContent = '我';
+      ico.style.color = '';
+    } else if (seen) {
+      ico.className = `ex-cell-ico ${style.cls}`;
+      ico.style.color = style.color;
+      ico.textContent = cell.cleared && cell.type !== 'exit' ? '✓' : def.glyph;
+    } else {
+      ico.className = 'ex-fog-dot';
+      ico.textContent = '？';
+      ico.style.color = '';
+    }
   }
 
   /* ---------------- 移动与格子事件 ---------------- */

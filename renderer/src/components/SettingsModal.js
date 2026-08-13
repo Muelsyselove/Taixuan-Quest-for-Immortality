@@ -1,9 +1,14 @@
 // AI 设置弹窗：厂商选择 + API Key + 模型（支持在线拉取最新模型列表）
-import { Component, h, icon } from '../core/component.js';
+import { h } from '../core/component.js';
+import { Modal } from '../ui/Modal.js';
 import { CONFIG } from '../core/config.js';
 
-export class SettingsModal extends Component {
-  render() {
+export class SettingsModal extends Modal {
+  get modalTitle() { return '接入 AI · 国内厂商'; }
+  get modalIcon() { return 'spark'; }
+  get modalClass() { return 'settings-modal'; }
+
+  body() {
     const eng = this.props.engine;
     this._draft = { ...eng.settings };
     this._models = [];
@@ -58,49 +63,43 @@ export class SettingsModal extends Component {
 
     /* Temperature */
     this.tempInput = h('input', { class: 'set-input', type: 'number', min: '0', max: '2', step: '0.1', value: this._draft.temperature });
-    this.tempInput.addEventListener('change', () => (this._draft.temperature = parseFloat(this.tempInput.value)));
+    this.tempInput.addEventListener('change', () => {
+      const v = parseFloat(this.tempInput.value);
+      this._draft.temperature = Number.isFinite(v) ? Math.min(2, Math.max(0, v)) : 1;
+    });
 
     const curVendor = CONFIG.vendors.find(v => v.key === this._draft.vendor) ?? CONFIG.vendors[0];
     this.hintEl = h('p', { class: 'set-tip' }, curVendor.hint);
 
-    const mask = h('div', {
-      class: 'modal-mask',
-      onclick: (e) => { if (e.target === mask) this.close(); }
-    },
-      h('div', { class: 'modal settings-modal' },
-        h('header', { class: 'panel-head' },
-          icon('spark', 16),
-          h('span', { class: 'panel-title' }, '接入 AI · 国内厂商'),
-          h('button', { class: 'modal-close', onclick: () => this.close() }, '×')
-        ),
-        h('div', { class: 'set-body' },
-          h('label', { class: 'set-field' }, h('span', null, '厂商'), this.vendorSel),
-          h('label', { class: 'set-field' }, h('span', null, '接口地址'), this.baseUrlInput),
-          h('label', { class: 'set-field' }, h('span', null, 'API Key'), this.keyInput),
-          h('label', { class: 'set-field' }, h('span', null, '模型'), this.modelSel),
-          h('div', { class: 'set-row' }, this.modelCustom, this.fetchBtn),
-          h('label', { class: 'set-field' }, h('span', null, '随机性 Temperature'), this.tempInput),
-          this.hintEl
-        ),
-        h('footer', { class: 'set-foot' },
-          h('button', { class: 'btn ghost', onclick: () => this.close() }, '取消'),
-          h('button', {
-            class: 'btn gold',
-            onclick: async () => {
-              this._draft.model = this.modelCustom.value.trim() || this._draft.model;
-              this._draft.apiKey = this.keyInput.value.trim();
-              this._draft.baseUrl = this.baseUrlInput.value.trim();
-              await eng.saveSettings(this._draft);
-              this.props.onSaved?.();
-              this.close();
-            }
-          }, '保存')
-        )
-      )
+    const bodyEl = h('div', { class: 'set-body' },
+      h('label', { class: 'set-field' }, h('span', null, '厂商'), this.vendorSel),
+      h('label', { class: 'set-field' }, h('span', null, '接口地址'), this.baseUrlInput),
+      h('label', { class: 'set-field' }, h('span', null, 'API Key'), this.keyInput),
+      h('label', { class: 'set-field' }, h('span', null, '模型'), this.modelSel),
+      h('div', { class: 'set-row' }, this.modelCustom, this.fetchBtn),
+      h('label', { class: 'set-field' }, h('span', null, '随机性 Temperature'), this.tempInput),
+      this.hintEl
     );
-    this.el = mask;
     this._fillModels(curVendor.models.length ? curVendor.models : (this._draft.model ? [this._draft.model] : []));
-    return mask;
+    return bodyEl;
+  }
+
+  footer() {
+    const eng = this.props.engine;
+    return h('div', { class: 'set-foot' },
+      h('button', { class: 'btn ghost', onclick: () => this.close() }, '取消'),
+      h('button', {
+        class: 'btn gold',
+        onclick: async () => {
+          this._draft.model = this.modelCustom.value.trim() || this._draft.model;
+          this._draft.apiKey = this.keyInput.value.trim();
+          this._draft.baseUrl = this.baseUrlInput.value.trim();
+          await eng.saveSettings(this._draft);
+          this.props.onSaved?.();
+          this.close();
+        }
+      }, '保存')
+    );
   }
 
   _fillModels(models) {
@@ -127,6 +126,4 @@ export class SettingsModal extends Component {
     }
     this.modelCustom.value = this._draft.model;
   }
-
-  close() { this.destroy(); }
 }
