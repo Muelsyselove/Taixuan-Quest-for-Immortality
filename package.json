@@ -7,41 +7,10 @@
   "scripts": {
     "start": "electron .",
     "selfcheck": "node selfcheck.js",
-    "pack": "electron-builder --win nsis --publish never"
-  },
-  "build": {
-    "appId": "com.taixuan.wendao",
-    "productName": "太玄问道",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*"
-    ],
-    "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": false,
-      "createStartMenuShortcut": true,
-      "shortcutName": "太玄问道",
-      "uninstallDisplayName": "太玄问道 ${version}",
-      "artifactName": "太玄问道-Setup-${version}.exe",
-      "include": "build/installer.nsh",
-      "deleteAppDataOnUninstall": false,
-      "publish": null
-    },
-    "compression": "maximum",
-    "asar": true
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "electron": "^43.4.0",
-    "electron-builder": "^26.15.3",
     "playwright-core": "^1.62.1"
   }
 }

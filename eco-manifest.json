@@ -1,0 +1,11 @@
+{
+  "spec": "eco/1",
+  "name": "taixuan-quest-for-immortality",
+  "displayName": "太玄问道",
+  "version": "2.4.0",
+  "description": "AI 驱动的修仙文字游戏（Electron + WebGL + SVG）",
+  "launch": { "command": "npm", "args": ["run", "start"] },
+  "dependencies": [
+    { "type": "npm", "command": "npm", "args": ["install"] }
+  ]
+}

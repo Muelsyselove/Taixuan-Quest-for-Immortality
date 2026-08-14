@@ -75,7 +75,7 @@ function showSettings() {
 
 function showCharSelect(mode = 'dialogue') {
   screens.show('chars', new CharacterSelect(store, {
-    engine, audio,
+    engine, audio, mode,
     onBack: showMainMenu,
     onPick: (ch) => showSaveSelect(ch, mode)
   }));
@@ -83,7 +83,7 @@ function showCharSelect(mode = 'dialogue') {
 
 function showSaveSelect(ch, mode = 'dialogue') {
   screens.show('saves', new SaveSelect(store, {
-    char: ch, audio,
+    char: ch, audio, mode,
     onBack: () => showCharSelect(mode),
     onEnter: (slot) => enterGame(ch, slot, mode)
   }));
@@ -100,7 +100,7 @@ async function enterGame(char, slot, mode = 'dialogue') {
   } else {
     const rec = await window.taixuan.chars.read(char.id).catch(() => null);
     store.reset(rec?.setup || {});
-    store.set({ mode }); // 新开局按入口模式
+    store.set({ mode: rec?.mode || char.mode || mode }); // 新开局以角色归属模式为准
   }
   const effective = store.state.mode === 'map' ? 'map' : 'dialogue';
   const onExit = async () => {

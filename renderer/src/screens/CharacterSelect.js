@@ -7,9 +7,11 @@ import { EmptyState } from '../ui/controls.js';
 export class CharacterSelect extends Component {
   constructor(store, props) {
     super(store, props);
-    // props: { engine, audio, onBack, onPick(character) }
+    // props: { engine, audio, mode, onBack, onPick(character) } — mode 决定仅列出该模式角色
     this.chars = null;
   }
+
+  _modeLabel() { return this.props.mode === 'map' ? '地图模式' : '对话模式'; }
 
   render() {
     this.listEl = h('div', { class: 'pick-grid' });
@@ -18,8 +20,8 @@ export class CharacterSelect extends Component {
         h('div', { class: 'pick-head' },
           h('button', { class: 'pick-back', title: '返回主界面', onclick: () => { this.props.audio?.click(); this.props.onBack?.(); } }, '‹'),
           h('div', { class: 'pick-head-text' },
-            h('div', { class: 'pick-title' }, '选择角色'),
-            h('div', { class: 'pick-sub' }, '每位角色拥有独立的存档空间')
+            h('div', { class: 'pick-title' }, `选择角色 · ${this._modeLabel()}`),
+            h('div', { class: 'pick-sub' }, '两种模式的角色与存档相互独立')
           )
         ),
         this.listEl
@@ -31,7 +33,7 @@ export class CharacterSelect extends Component {
   afterMount() { this._load(); }
 
   async _load() {
-    this.chars = await window.taixuan.chars.list().catch(() => []) || [];
+    this.chars = await window.taixuan.chars.list(this.props.mode).catch(() => []) || [];
     this._renderList();
   }
 
@@ -48,7 +50,7 @@ export class CharacterSelect extends Component {
     }));
 
     if (!this.chars.length) {
-      this.listEl.appendChild(EmptyState({ text: '尚无角色', sub: '点击「新建角色」踏上仙途' }));
+      this.listEl.appendChild(EmptyState({ text: `此模式尚无角色`, sub: '点击「新建角色」踏上仙途' }));
       return;
     }
 
@@ -79,7 +81,7 @@ export class CharacterSelect extends Component {
     new CreationModal(this.store, {
       engine: this.props.engine,
       onComplete: async (setup) => {
-        const resp = await window.taixuan.chars.create({ name: setup.name, origin: setup.origin, setup });
+        const resp = await window.taixuan.chars.create({ name: setup.name, origin: setup.origin, setup, mode: this.props.mode });
         if (resp?.ok) this.props.onPick?.(resp.character);
       }
     }).mount(document.body);

@@ -42,7 +42,10 @@ export class SaveLoadModal extends Modal {
 
   async refresh() {
     try {
-      this.slots = await this.props.saves.list();
+      const all = await this.props.saves.list();
+      // 模式隔离：仅展示当前模式的存档（旧存档无 mode 视为 dialogue）
+      const mode = this.store.state.mode === 'map' ? 'map' : 'dialogue';
+      this.slots = all.filter(s => (s.mode || 'dialogue') === mode);
     } catch (e) {
       // 读档列表失败：按无存档渲染，不阻塞弹窗
       this.slots = [];

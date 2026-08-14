@@ -42,9 +42,9 @@
 
 ## 🚀 快速开始
 
-### 下载安装
+### 下载与启动（ECO 启动器）
 
-前往 [Releases](https://github.com/Muelsyselove/Taixuan-Quest-for-Immortality/releases) 页面下载最新版本的 `太玄问道-Setup-x.x.x.exe`，运行后按向导安装即可（支持自选安装目录）。
+本项目已接入 ECO 启动器：前往 [Releases](https://github.com/Muelsyselove/Taixuan-Quest-for-Immortality/releases) 页面可获取 `taixuan-quest-for-immortality-x.x.x-eco.tar.gz`（ECO 友好压缩包）。推荐使用 ECO 启动器「种植」本项目——由 ECO 自动完成下载、解压、依赖装配与启动，并在有新版本时提示更新。
 
 ### 本地运行（开发模式）
 
@@ -60,13 +60,13 @@ npm install
 npm start
 ```
 
-### 打包安装包
+### 发布新版本
 
 ```bash
-npm run pack
+npm run release -- patch --notes "更新说明"
 ```
 
-打包产物位于 `release/` 目录下，包含 NSIS 安装程序 `太玄问道-Setup-x.x.x.exe`。
+同步版本号（package.json / config.js / eco-manifest.json）→ 自检 → 本地验证 ECO 压缩包 → git 提交并推送 tag，GitHub Action 自动构建 ECO 压缩包并发布到 Release。
 
 ### 自检
 
@@ -92,9 +92,8 @@ npm run selfcheck
 Taixuan-Quest-for-Immortality/
 ├── main.js                  # Electron 主进程（窗口 / IPC / 存档读写）
 ├── preload.js               # 预加载脚本（contextBridge 白名单 IPC）
-├── package.json             # 依赖与 electron-builder 配置
-├── build/
-│   └── installer.nsh        # NSIS 安装包自定义脚本
+├── package.json             # 依赖与脚本
+├── eco-manifest.json        # ECO 启动器接入清单（依赖装配 + 启动命令）
 ├── docs/images/             # README 插图
 ├── renderer/                # 渲染层（前端）
 │   ├── index.html           # 入口 HTML
@@ -164,11 +163,11 @@ Taixuan-Quest-for-Immortality/
 
 ## 🛠️ 技术栈
 
-- **Electron 31** — 跨平台桌面应用框架
+- **Electron** — 跨平台桌面应用框架
 - **原生 WebGL** — 背景山水雾气实时渲染（无第三方 3D 库）
 - **原生 SVG** — 地图绘制与交互
 - **Vanilla JavaScript** — 无前端框架，自研轻量组件系统（h 函数 + 响应式订阅）
-- **electron-builder** — NSIS 安装包打包
+- **ECO 启动器** — 下载 / 装配 / 启动 / 更新（Release 提供 ECO 友好压缩包）
 - **Playwright** — 自动化自检
 
 ## 📜 许可证

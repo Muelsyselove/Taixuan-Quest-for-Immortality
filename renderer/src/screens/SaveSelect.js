@@ -6,7 +6,7 @@ import { EmptyState } from '../ui/controls.js';
 export class SaveSelect extends Component {
   constructor(store, props) {
     super(store, props);
-    // props: { char, audio, onBack, onEnter(slotKey|null) } — slotKey=null 表示新开局
+    // props: { char, audio, mode, onBack, onEnter(slotKey|null) } — slotKey=null 表示新开局；mode 过滤本模式存档
     this.slots = null;
   }
 
@@ -30,7 +30,10 @@ export class SaveSelect extends Component {
   afterMount() { this._load(); }
 
   async _load() {
-    this.slots = await window.taixuan.saves.list(this.props.char.id).catch(() => []) || [];
+    const all = await window.taixuan.saves.list(this.props.char.id).catch(() => []) || [];
+    // 模式隔离：仅展示本模式存档；无 mode 的旧存档视为 dialogue
+    const mode = this.props.mode === 'map' ? 'map' : 'dialogue';
+    this.slots = all.filter(s => (s.mode || 'dialogue') === mode);
     this._renderList();
   }
 

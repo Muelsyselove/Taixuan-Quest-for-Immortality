@@ -99,11 +99,16 @@ ipcMain.handle('settings:write', (e, data) => {
   return true;
 });
 
-/* ================= 角色登记册 ================= */
-ipcMain.handle('chars:list', (e) => {
+/* ================= 角色登记册（按模式分离：对话 / 地图） ================= */
+ipcMain.handle('chars:list', (e, mode) => {
   assertTrusted(e);
   try {
-    return readIndex().sort((a, b) => (b.last?.savedAt || b.createdAt || 0) - (a.last?.savedAt || a.createdAt || 0));
+    let list = readIndex();
+    // 模式过滤：未传 mode 返回全部；旧角色缺 mode 时视为 dialogue（迁移函数兜底）
+    if (mode === 'dialogue' || mode === 'map') {
+      list = list.filter(c => (c.mode || 'dialogue') === mode);
+    }
+    return list.sort((a, b) => (b.last?.savedAt || b.createdAt || 0) - (a.last?.savedAt || a.createdAt || 0));
   } catch { return []; }
 });
 
@@ -111,17 +116,19 @@ ipcMain.handle('chars:create', (e, payload) => {
   assertTrusted(e);
   try {
     const id = `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+    const mode = payload?.mode === 'map' ? 'map' : 'dialogue'; // 角色归属模式，一经创建不可改
     const character = {
       id,
       name: String(payload?.name || '无名散修').slice(0, 12),
       origin: String(payload?.origin || '').slice(0, 100),
       createdAt: Date.now(),
+      mode,
       setup: payload?.setup && typeof payload.setup === 'object' ? payload.setup : {}
     };
     ensureDir(charDir(id));
     writeJSON(charFile(id), character);
     const idx = readIndex();
-    idx.push({ id, name: character.name, origin: character.origin, createdAt: character.createdAt, last: null });
+    idx.push({ id, name: character.name, origin: character.origin, createdAt: character.createdAt, mode, last: null });
     writeIndex(idx);
     return { ok: true, id, character };
   } catch (err) { return { ok: false, error: String(err) }; }
@@ -235,6 +242,31 @@ function migrateLegacySaves() {
   try { fs.renameSync(legacyDir, userDir(`saves.migrated-${Date.now()}`)); } catch { /* 保留原目录亦无碍 */ }
 }
 
+/* ---------- 角色模式一次性迁移（V2.4 及更早角色无 mode 字段） ----------
+ * 判定依据：该角色最近存档 meta.mode；无存档则默认 dialogue
+ * 同时回写 character.json 与 index.json，确保两处一致 */
+function migrateCharModes() {
+  const idx = readIndex();
+  let dirty = false;
+  for (const ch of idx) {
+    if (ch.mode === 'dialogue' || ch.mode === 'map') continue;
+    let mode = 'dialogue';
+    try {
+      const metas = fs.readdirSync(savesRoot(ch.id), { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => readJSON(path.join(slotDir(ch.id, d.name), 'meta.json')))
+        .filter(Boolean)
+        .sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+      if (metas[0]?.mode === 'map') mode = 'map';
+    } catch { /* 无存档目录，保持默认 */ }
+    ch.mode = mode;
+    dirty = true;
+    const rec = readJSON(charFile(ch.id));
+    if (rec && !rec.mode) { rec.mode = mode; writeJSON(charFile(ch.id), rec); }
+  }
+  if (dirty) writeIndex(idx);
+}
+
 /* ================= Token 用量统计 ================= */
 ipcMain.handle('usage:record', (e, entry) => {
   assertTrusted(e);
@@ -330,6 +362,7 @@ ipcMain.handle('ai:models', async (e, { baseUrl, apiKey } = {}) => {
 
 app.whenReady().then(() => {
   migrateLegacySaves();
+  migrateCharModes();
   createWindow();
 });
 app.on('window-all-closed', () => {

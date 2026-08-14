@@ -1,0 +1,29 @@
+name: eco-release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 打入 ECO 压缩包
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          NAME=$(node -p "require('./eco-manifest.json').name")
+          MANIFEST_VER=$(node -p "require('./eco-manifest.json').version")
+          if [ "$MANIFEST_VER" != "$VERSION" ]; then
+            echo "::error::eco-manifest.json 版本($MANIFEST_VER)与 tag($VERSION)不一致"
+            exit 1
+          fi
+          mkdir -p dist-eco
+          cp -r package.json package-lock.json eco-manifest.json main.js preload.js selfcheck.js start.bat renderer dist-eco/
+          tar -czf "${NAME}-${VERSION}-eco.tar.gz" -C dist-eco .
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: "*-eco.tar.gz"

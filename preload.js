@@ -10,9 +10,9 @@ contextBridge.exposeInMainWorld('taixuan', {
     read: () => ipcRenderer.invoke('settings:read'),
     write: (data) => ipcRenderer.invoke('settings:write', data)
   },
-  // 角色登记册
+  // 角色登记册（按模式分离：list/create 携带 mode）
   chars: {
-    list: () => ipcRenderer.invoke('chars:list'),
+    list: (mode) => ipcRenderer.invoke('chars:list', mode),
     create: (payload) => ipcRenderer.invoke('chars:create', payload),
     read: (id) => ipcRenderer.invoke('chars:read', id),
     remove: (id) => ipcRenderer.invoke('chars:delete', id)
