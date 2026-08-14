@@ -1,4 +1,10 @@
+<div align="center">
+
 # 太玄问道 · Taixuan: Quest for Immortality
+
+**简体中文** | [English](./README_EN.md)
+
+</div>
 
 ![太玄问道](docs/images/banner.jpg)
 
@@ -6,10 +12,34 @@
 
 **太玄问道**是一款由 AI 驱动的东方修仙文字游戏。Electron 为骨、WebGL 为魂、SVG 绘山河，大语言模型实时生成剧情——每段旅途独一无二，每位道友的证道之路，皆由天道亲手书写。
 
-![Electron](https://img.shields.io/badge/Electron-31-47848F?logo=electron&logoColor=white)
+<div align="center">
+
+![Electron](https://img.shields.io/badge/Electron-43-47848F?logo=electron&logoColor=white)
 ![Platform](https://img.shields.io/badge/platform-Windows%207%2F10%2F11-blue)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue)
-![Version](https://img.shields.io/badge/version-2.0.0-gold)
+![Version](https://img.shields.io/badge/version-2.4.1-gold)
+
+</div>
+
+---
+
+## 📸 界面一览
+
+| 主界面 | 新开征程（角色设定） |
+|:---:|:---:|
+| ![主界面](docs/images/menu.jpg) | ![角色设定](docs/images/creation.jpg) |
+
+| 对话模式 | 回合制战斗 |
+|:---:|:---:|
+| ![对话模式](docs/images/dialogue.jpg) | ![战斗](docs/images/combat.jpg) |
+
+| 山河舆图（大世界） | 宗门区域 |
+|:---:|:---:|
+| ![大世界地图](docs/images/worldmap.jpg) | ![区域地图](docs/images/region.jpg) |
+
+| 场景绘卷与 NPC 对话 |
+|:---:|
+| ![场景](docs/images/scene.jpg) |
 
 ---
 
@@ -19,8 +49,7 @@
 
 - **对话模式**：AI 实时生成剧情的文字冒险。事件、选项、战斗、奇遇皆由大模型执笔，亦可自由输入行动，天马行空皆能成章。
 - **地图模式**：自由漫游太玄大陆。三级导航（**大世界 → 宗门/区域 → 场景**），纯 SVG 地图支持滚轮缩放与拖拽平移，所见皆可踏足。
-
-![山河舆图](docs/images/worldmap.jpg)
+- **存档隔离**：两种模式拥有各自独立的角色与存档空间，互不干扰，各证各道。
 
 ### 修行体系
 
@@ -34,10 +63,10 @@
 
 ### 角色与世界
 
-- **角色设定**：新征程自定义灵根（1~5 个）、天赋、被动/主动技能（与灵根属性相关）。AI 生成候选，可无限刷新，随心搭配。
+- **角色设定**：新征程自定义灵根（1~5 个）、天赋（0~3 个）、被动/主动技能（与灵根属性相关）。AI 生成候选，可无限刷新，随心搭配。
 - **人物关系**：十余位性格迥异的 NPC——掌门、长老、药童、情报贩子……寒暄赠答皆入史册，好感度影响宗门际遇。
 - **物品系统**：七档品质（平凡·优秀·精良·史诗·传说·洪荒·初元），丹药、法宝、功法、材料、奇物一应俱全；道具可授予 buff、学习技能或获得天赋。
-- **存档系统**：多角色 × 多存档槽，按域分文件存储 + 自动存档，随时读档回溯。
+- **存档系统**：多角色 × 多存档槽，按域分文件存储 + 自动存档，随时读档回溯；存档位于系统用户目录，卸载更新皆不丢失。
 - **花费统计**：AI 调用用量与花费实时记录，缓存命中率与堆叠图一目了然。
 
 ## 🚀 快速开始
@@ -60,13 +89,7 @@ npm install
 npm start
 ```
 
-### 发布新版本
-
-```bash
-npm run release -- patch --notes "更新说明"
-```
-
-同步版本号（package.json / config.js / eco-manifest.json）→ 自检 → 本地验证 ECO 压缩包 → git 提交并推送 tag，GitHub Action 自动构建 ECO 压缩包并发布到 Release。
+> 环境要求：Node.js ≥ 20，Windows 7/10/11。
 
 ### 自检
 
@@ -75,6 +98,14 @@ npm run selfcheck
 ```
 
 基于 Playwright 驱动 Electron 的全功能回归：主界面 → 角色创建 → 对话/地图双模式 → 战斗 → 存档往返 → 花费统计，全流程自动验证。
+
+### 更新界面截图
+
+```bash
+node scripts/screenshot.js
+```
+
+自动走完关键界面并截图输出至 `docs/images/`。
 
 ## 🔑 AI 配置
 
@@ -95,6 +126,10 @@ Taixuan-Quest-for-Immortality/
 ├── package.json             # 依赖与脚本
 ├── eco-manifest.json        # ECO 启动器接入清单（依赖装配 + 启动命令）
 ├── docs/images/             # README 插图
+├── scripts/
+│   ├── release.mjs          # 版本发布脚本（三处版本同步 + ECO 打包 + tag 推送）
+│   └── screenshot.js        # README 截图脚本
+├── .github/workflows/       # eco-release：tag 推送自动构建发布 ECO 压缩包
 ├── renderer/                # 渲染层（前端）
 │   ├── index.html           # 入口 HTML
 │   ├── styles/              # 玄墨鎏金主题（按功能域拆分，main.css 聚合引入）
@@ -163,18 +198,55 @@ Taixuan-Quest-for-Immortality/
 
 ## 🛠️ 技术栈
 
-- **Electron** — 跨平台桌面应用框架
-- **原生 WebGL** — 背景山水雾气实时渲染（无第三方 3D 库）
-- **原生 SVG** — 地图绘制与交互
-- **Vanilla JavaScript** — 无前端框架，自研轻量组件系统（h 函数 + 响应式订阅）
-- **ECO 启动器** — 下载 / 装配 / 启动 / 更新（Release 提供 ECO 友好压缩包）
-- **Playwright** — 自动化自检
+| 类别 | 技术 | 说明 |
+|------|------|------|
+| 桌面框架 | **Electron 43** | 跨平台桌面应用框架（contextIsolation + sandbox 安全模型） |
+| 渲染 | **原生 WebGL** | 背景山水灵雾实时渲染（无第三方 3D 库） |
+| 地图 | **原生 SVG** | 大世界 / 区域 / 山河舆图绘制与交互 |
+| 前端 | **Vanilla JavaScript** | 无前端框架，自研轻量组件系统（h 函数 + 响应式订阅） |
+| AI | **OpenAI 兼容协议** | 多供应商适配（DeepSeek / Kimi / GLM / 通义 / 豆包 / MiniMax / 自定义） |
+| 测试 | **Playwright** | Electron 驱动全功能自动化回归 |
+| 分发 | **ECO 启动器** | 下载 / 装配 / 启动 / 更新（Release 提供 ECO 友好压缩包） |
+
+## 📦 发布新版本
+
+```bash
+npm run release -- patch --notes "更新说明"
+```
+
+同步版本号（package.json / config.js / eco-manifest.json）→ 自检 → 本地验证 ECO 压缩包 → git 提交并推送 tag，GitHub Action 自动构建 ECO 压缩包并发布到 Release。
+
+## 🙏 致谢
+
+本项目的诞生离不开以下开源项目与创作者的支持，谨此郑重致谢：
+
+| 项目 | 用途 | 许可证 |
+|------|------|--------|
+| [Electron](https://www.electronjs.org/) | 跨平台桌面应用框架 | [MIT](https://github.com/electron/electron/blob/main/LICENSE) |
+| [Playwright](https://playwright.dev/) | 自动化测试与自检 | [Apache-2.0](https://github.com/microsoft/playwright/blob/main/LICENSE) |
+| [Ma Shan Zheng](https://fonts.google.com/specimen/Ma+Shan+Zheng) · 字体 | 标题展示字（马善政体） | [SIL OFL 1.1](https://fonts.google.com/specimen/Ma+Shan+Zheng/license) |
+| [Noto Serif SC](https://fonts.google.com/specimen/Noto+Serif+SC) · 字体 | 正文字（思源宋体） | [SIL OFL 1.1](https://fonts.google.com/specimen/Noto+Serif+SC/license) |
+| [ZCOOL XiaoWei](https://fonts.google.com/specimen/ZCOOL+XiaoWei) · 字体 | 装饰字（站酷小薇体） | [SIL OFL 1.1](https://fonts.google.com/specimen/ZCOOL+XiaoWei/license) |
+| ECO 启动器（莱茵生命生态科） | 项目分发与自动更新生态 | — |
+
+同时感谢各大 AI 供应商提供的开放接口，让「天道执笔」成为可能。
 
 ## 📜 许可证
 
-本项目采用 [GNU AGPL v3.0](LICENSE) 开源。
+本项目采用 [**GNU Affero General Public License v3.0**](./LICENSE) 开源。
+
+**特别声明**：
+
+- 本项目中引用或使用的来自第三方项目的部分（包括但不限于上表所列的 Electron、Playwright 及 Google Fonts 字体等），其版权与许可**不受本项目许可证约束**，而是**沿用各自原项目的开源许可证**（MIT / Apache-2.0 / SIL OFL 1.1 等），版权归各自原作者所有。
+- 未获特别授权前，请勿将本项目中的第三方组件视作 AGPL-3.0 授权的一部分进行再分发。
 
 ---
 
+<div align="center">
+
 > 天地玄黄，宇宙洪荒。
 > 一念成道，太玄问道。
+
+**[English](./README_EN.md)** · 简体中文
+
+</div>
