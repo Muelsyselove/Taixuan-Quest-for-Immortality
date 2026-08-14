@@ -2,7 +2,7 @@
 export const CONFIG = {
   gameTitle: '太玄问道',
   gameSubtitle: '一缕神魂入太玄 · 万般因果问长生',
-  version: '2.4.0',
+  version: '2.4.1',
 
   // 主界面模式入口（available=false 表示敬请期待）
   modes: [
